@@ -25,11 +25,14 @@ win32 {
   }
 }
 
+LIBS += -lX11
+
 TEMPLATE = app
 CONFIG += thread debug
 TARGET = vidgui
 DEPENDPATH += .
 QT += core widgets
+QT += gui x11extras
 
 # Input
 HEADERS += vidgui.h vidwin.h

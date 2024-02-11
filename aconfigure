@@ -10161,6 +10161,7 @@ else $as_nop
 
 		  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: Checking if libwebrtc is disabled...no" >&5
 printf "%s\n" "Checking if libwebrtc is disabled...no" >&6; }
+                 printf "Setting webrtc flags for target=$target\n"
 		  case $target in
 		      *-apple-darwin_ios*)
 			case $target in
@@ -10211,6 +10212,11 @@ printf "%s\n" "Checking if libwebrtc is disabled...no" >&6; }
 		     *win32* | *w32* | *darwin* | *linux*)
                          case $target in
                              armv7l*gnueabihf)
+                                 ac_webrtc_instset=neon
+                                 ac_webrtc_cflags="-DWEBRTC_ARCH_ARMV7 -mfloat-abi=hard -mfpu=neon"
+                                 ;;
+                             arm*gnueabihf)
+                                 printf "Set webrtc flags for target=$target.. ok\n"
                                  ac_webrtc_instset=neon
                                  ac_webrtc_cflags="-DWEBRTC_ARCH_ARMV7 -mfloat-abi=hard -mfpu=neon"
                                  ;;

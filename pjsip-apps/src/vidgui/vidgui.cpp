@@ -37,12 +37,12 @@
 //
 // These configure SIP registration
 //
-#define USE_REGISTRATION        0
-#define SIP_DOMAIN              "pjsip.org"
-#define SIP_USERNAME            "vidgui"
-#define SIP_PASSWORD            "secret"
+#define USE_REGISTRATION        1
+#define SIP_DOMAIN              "localhost"  //"pjsip.org"
+#define SIP_USERNAME            "102"
+#define SIP_PASSWORD            "102"
 #define SIP_PORT                5080
-#define SIP_TCP                 1
+//#define SIP_TCP                 1
 
 //
 // NAT helper settings
@@ -54,8 +54,8 @@
 //
 // Devices settings
 //
-#define DEFAULT_CAP_DEV         PJMEDIA_VID_DEFAULT_CAPTURE_DEV
-//#define DEFAULT_CAP_DEV               1
+//#define DEFAULT_CAP_DEV         PJMEDIA_VID_DEFAULT_CAPTURE_DEV
+#define DEFAULT_CAP_DEV               1
 #define DEFAULT_REND_DEV        PJMEDIA_VID_DEFAULT_RENDER_DEV
 
 
@@ -471,6 +471,36 @@ static void on_call_media_state(pjsua_call_id call_id)
     MainWin::instance()->on_call_media_state(call_id);
 }
 
+static void videodevs_info() {
+    unsigned count=8;
+    std::vector<pjmedia_vid_dev_info> info(count);
+    pj_status_t rci = pjsua_vid_enum_devs(info.data(), &count);
+    printf("enum video devices rc=%d \n",rci );
+    if(rci==PJ_SUCCESS) {
+        if(count > 0) {
+            printf("Ok enum video devices count=%d \n",count );
+            for(int i=0;i<count ;i++ ) {
+                printf("Ok enum video devices  id=%d \n",info[i].id );
+                printf("Ok enum video devices  name=%s \n",info[i].name );
+                printf("Ok enum video devices  driver=%s \n",info[i].driver );
+                printf("Ok enum video devices  dir=%d \n",info[i].dir );
+                printf("Ok enum video devices  has_callback=%d \n",info[i]. has_callback );
+                printf("Ok enum video devices  fmt_cnt=%d \n",info[i].fmt_cnt  );
+                /*
+                  for(it i=0;i<count ;i++ ) {
+
+                  printf("Ok enum video devices  fmt_cnt=%d \n",info[i].fmt_cnt  );
+
+                  }
+                */
+            }
+        }else {printf("Error enum video devices count=%d \n",count );}
+
+    }
+    else {printf("Error enum video devices rc=%d \n",rci );}
+}
+
+
 //
 // initStack()
 //
@@ -513,6 +543,8 @@ bool MainWin::initStack()
         showError("pjsua_init", status);
         goto on_error;
     }
+
+    videodevs_info();
 
     //
     // Create UDP and TCP transports
@@ -709,6 +741,7 @@ int main(int argc, char *argv[])
         10 SDL_CreateWindow()
         ..
      */
+
     if ( SDL_InitSubSystem(SDL_INIT_VIDEO) < 0 ) {
         printf("Unable to init SDL: %s\n", SDL_GetError());
         return 1;

@@ -1,4 +1,3 @@
-pjlib/include/pj/config_site.h
 lib/
 bin/
 output/
@@ -29,9 +28,9 @@ samples.log
 config.log
 config.status
 build.mak
-user.mak
 cc-auto.mak
 os-auto.mak
+!third_party/build/webrtc_aec3/os-auto.mak
 m_auto.h
 os_auto.h
 config_auto.h
@@ -86,3 +85,14 @@ tests/fuzz/*.o
 cov-int/
 getversion.mak
 configure.out
+
+*.log
+*.o
+pjsip-apps/src/vidgui/.qmake.stash
+pjsip-apps/src/vidgui/Makefile
+pjsip-apps/src/vidgui/moc_predefs.h
+pjsip-apps/src/vidgui/moc_vidgui.cpp
+pjsip-apps/src/vidgui/moc_vidwin.cpp
+pjsip-apps/src/vidgui/vidgui
+configure-arm-local.sh
+
