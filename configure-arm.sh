@@ -1,5 +1,13 @@
 #!/bin/sh
 
+if [[ ${CROSS_COMPILE_HOST} == ""   ]]
+then
+    echo "Set CROSS_COMPILE_HOST."
+    echo "exit ..."
+    exit 1
+fi
+
+
 if [[ ${SDK_DIR} == ""   ]]
 then
     echo "Set SDK_DIR."
@@ -31,7 +39,12 @@ export CPPFLAGS+="-I${SDK_SYSROOT_DIR}/usr/include -Wno-format"
 #export AR=arm-linux-gnueabihf-ar
 
 ./configure \
+    --enable-libwebrtc-aec3 \
+    --with-sdl=${SDK_SYSROOT_DIR} \
+    --with-ffmpeg=${SDK_SYSROOT_DIR} \
+    --with-vpx=${SDK_SYSROOT_DIR} \
+    --with-openh264=${SDK_SYSROOT_DIR} \
     --exec_prefix=$INSTALL_DIR \
     --prefix=$INSTALL_DIR \
-    --host=arm-linux-gnueabihf --build=x86_64
+    --host=${CROSS_COMPILE_HOST} --build=x86_64
 
