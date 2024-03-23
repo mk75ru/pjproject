@@ -6,29 +6,34 @@ then
     echo "exit ..."
     exit 1
 fi
-
+echo "CROSS_COMPILE_HOST=$CROSS_COMPILE_HOST"
 
 if [[ ${SDK_DIR} == ""   ]]
 then
     echo "Set SDK_DIR."
     echo "exit ..."
-    exit 1
+    exit 2
 fi
+echo "SDK_DIR=$SDK_DIR"
 
 
 if [[ ${SDK_SYSROOT_DIR} == ""   ]]
 then
     echo "Set SDK_SYSROOT_DIR."
     echo "exit ..."
-    exit 1
+    exit 3
 fi
+echo "SDK_SYSROOT_DIR=$SDK_SYSROOT_DIR"
+
 
 if [[ ${INSTALL_DIR} == ""   ]]
 then
     echo "Set INSTALL_DIR."
     echo "exit ..."
-    exit 2
+    exit 4
 fi
+echo "INSTALL_DIR=$INSTALL_DIR"
+
 
 export PATH="${SDK_DIR}/host/bin":$PATH
 export LD_LIBRARY_PATH="${SDK_SYSROOT_DIR}/usr/lib":$LD_LIBRARY_PATH

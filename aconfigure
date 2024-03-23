@@ -1369,6 +1369,8 @@ if test "x$host_alias" != x; then
   fi
 fi
 
+echo "............ cross_compiling=$cross_compiling"
+
 ac_tool_prefix=
 test -n "$host_alias" && ac_tool_prefix=$host_alias-
 
@@ -10334,10 +10336,10 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 			;;
 		     *win32* | *w32* | *darwin* | *linux*)
                          case $target in
-                             armv7l*gnueabihf)
+                             armv7l*gnueabihf | arm*gnueabihf)
                                  ac_webrtc_aec3_instset=neon
                                  ac_webrtc_aec3_cflags="-DWEBRTC_ARCH_ARMV7 -mfloat-abi=hard -mfpu=neon"
-                                 ;;
+                                 ;;                                                                                            
 			     arm-apple-darwin* | aarch64*)
 				 ac_webrtc_aec3_instset=neon
 				 ac_webrtc_aec3_cflags="-DWEBRTC_ARCH_ARM64"

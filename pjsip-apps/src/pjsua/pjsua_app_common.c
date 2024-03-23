@@ -240,8 +240,10 @@ void arrange_window(pjsua_vid_win_id wid)
     pjmedia_coord pos;
     int i, last;
 
-    pos.x = 0;
-    pos.y = 10;
+//    pos.x = 0;
+//    pos.y = 10;
+    pos.x = 40;
+    pos.y = 120;
     last = (wid == PJSUA_INVALID_ID) ? PJSUA_MAX_VID_WINS : wid;
 
     for (i=0; i<last; ++i) {
