@@ -96,3 +96,4 @@ pjsip-apps/src/vidgui/moc_vidwin.cpp
 pjsip-apps/src/vidgui/vidgui
 configure-arm-local.sh
 
+install-x86_64
