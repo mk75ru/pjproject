@@ -5699,10 +5699,13 @@ printf "%s\n" "#define AC_APPLE_UNIVERSAL_BUILD 1" >>confdefs.h
  esac
 
 
+ printf "%s\n"  "---------- check endian -------------"
 if test "x$ac_cv_c_bigendian" = "xyes"; then
+  printf "%s\n"  "---------- bigendian -------------"
   CFLAGS="$CFLAGS -DPJ_IS_BIG_ENDIAN=1 -DPJ_IS_LITTLE_ENDIAN=0"
   ac_cflags="$ac_cflags -DPJ_IS_BIG_ENDIAN=1 -DPJ_IS_LITTLE_ENDIAN=0"
 else
+  printf "%s\n"  "---------- litlendian -------------"
   CFLAGS="$CFLAGS -DPJ_IS_BIG_ENDIAN=0 -DPJ_IS_LITTLE_ENDIAN=1"
   ac_cflags="$ac_cflags -DPJ_IS_BIG_ENDIAN=0 -DPJ_IS_LITTLE_ENDIAN=1"
 fi
@@ -10377,7 +10380,6 @@ else $as_nop
 printf "%s\n" "Checking if libwebrtc-aec3 is enabled...no" >&6; }
 
 fi
-
 
 
 
