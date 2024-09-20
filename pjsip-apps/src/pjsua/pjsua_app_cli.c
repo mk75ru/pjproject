@@ -18,7 +18,7 @@
  */
 
 #include "pjsua_app_common.h"
-
+#include "event_handler.h"
 #define THIS_FILE       "pjsua_app_cli.c"
 
 #define CHECK_PJSUA_RUNNING() if (pjsua_get_state()!=PJSUA_STATE_RUNNING) \
@@ -950,6 +950,7 @@ pj_status_t cmd_account_handler(pj_cli_cmd_val *cval)
         status = cmd_next_account(cval);
         break;
     case CMD_ACCOUNT_SHOW:
+        event_handler_run("CMD_ACCOUNT_SHOW");
         status = cmd_show_account(cval);
         break;
     }
@@ -2096,53 +2097,69 @@ pj_status_t cmd_call_handler(pj_cli_cmd_val *cval)
 
     switch(cmd_id) {
     case CMD_CALL_NEW:
+        event_handler_run("CMD_CALL_NEW");
         status = cmd_make_single_call(cval);
         break;
     case CMD_CALL_MULTI:
+        event_handler_run("CMD_CALL_MULTI");
         status = cmd_make_multi_call(cval);
         break;
     case CMD_CALL_ANSWER:
+        event_handler_run("CMD_CALL_ANSWER");
         status = cmd_answer_call(cval);
         break;
     case CMD_CALL_HANGUP:
     case CMD_CALL_HANGUP_ALL:
+        event_handler_run("CMD_CALL_HANGUP");
         status = cmd_hangup_call(cval, (cmd_id==CMD_CALL_HANGUP_ALL));
         break;
     case CMD_CALL_HOLD:
+        event_handler_run("CMD_CALL_HOLD");
         status = cmd_hold_call();
         break;
     case CMD_CALL_REINVITE:
+        event_handler_run("CMD_CALL_REINVITE");
         status = cmd_call_reinvite();
         break;
     case CMD_CALL_UPDATE:
+        event_handler_run("CMD_CALL_UPDATE");
         status = cmd_call_update();
         break;
     case CMD_CALL_NEXT:
     case CMD_CALL_PREVIOUS:
+        event_handler_run("CMD_CALL_NEXT");
         status = cmd_next_call(cmd_id==CMD_CALL_NEXT);
         break;
     case CMD_CALL_TRANSFER:
+        event_handler_run("CMD_CALL_TRANSFER");
         status = cmd_transfer_call(cval);
         break;
     case CMD_CALL_TRANSFER_REPLACE:
+        event_handler_run("CMD_CALL_TRANSFER_REPLACE");
         status = cmd_transfer_replace_call(cval);
         break;
     case CMD_CALL_REDIRECT:
+        event_handler_run("CMD_CALL_REDIRECT");
         status = cmd_redirect_call(cval);
         break;
     case CMD_CALL_D2833:
+        event_handler_run("CMD_CALL_D2833");
         status = cmd_dtmf_2833(cval);
         break;
     case CMD_CALL_INFO:
+        event_handler_run("CMD_CALL_INFO");
         status = cmd_call_info(cval);
         break;
     case CMD_CALL_DUMP_Q:
+        event_handler_run("CMD_CALL_DUMP_Q");
         status = cmd_call_quality();
         break;
     case CMD_CALL_SEND_ARB:
+        event_handler_run("CMD_CALL_SEND_ARB");
         status = cmd_send_arbitrary(cval);
         break;
     case CMD_CALL_LIST:
+        event_handler_run("CMD_CALL_LIST");
         status = cmd_show_current_call(cval);
         break;
     }

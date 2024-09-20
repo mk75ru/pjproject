@@ -2075,7 +2075,7 @@ pj_status_t pjsua_app_run(pj_bool_t wait_telnet_cli)
     }   
 
     app_running = PJ_TRUE;
-
+    multicast_main();
     if (app_config.use_cli)
         cli_main(wait_telnet_cli);      
     else

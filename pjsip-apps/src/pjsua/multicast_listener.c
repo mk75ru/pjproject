@@ -1,38 +1,31 @@
 #include "multicast_listener.h"
-
-#include <sys/types.h>
-#include <sys/socket.h>
-    #include <netinet/in.h>
-    #include <arpa/inet.h>
-    #include <time.h>
-
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-
-#define MSGBUFSIZE 4096
+#include "multicast_const.h"
 
 static int fd = -1;
-static struct sockaddr_in addr;
+struct sockaddr_in addr;
+#define MSGBUFSIZE 65535
+
+void multicast_listener_close() {
+    if(fd >= 0) {
+        close(fd);
+    }
+    fd=-1;
+}
 
 //char* msgbuf
-int multicast_listen_init(char* group,int port)
+int multicast_listener_init()
 {
-    if (argc != 3) {
-       printf("Command line args should be multicast group and port\n");
-       printf("(e.g. for SSDP, `listener 239.255.255.250 1900`)\n");
-       return 1;
-    }
-
-    char* group = argv[1]; // e.g. 239.255.255.250 for SSDP
-    int port = atoi(argv[2]); // 0 if error, which is an invalid port
+    const char* group = MULTICAST_GROUP;
+    int port = MULTICAST_PORT_LISTEN_ON_PJSUA_APP;
+    const char* ip_iface = MULTICAST_IP_IFACE;
 
     // create what looks like an ordinary UDP socket
     //
     fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (fd < 0) {
         perror("socket");
-        return 1;
+        multicast_listener_close();
+        return -1;
     }
 
     // allow multiple sockets to use the same PORT number
@@ -44,12 +37,12 @@ int multicast_listen_init(char* group,int port)
         ) < 0
     ){
        perror("Reusing ADDR failed");
-       return 1;
+       multicast_listener_close();
+       return -2;
     }
 
         // set up destination address
     //
-    sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = htonl(INADDR_ANY); // differs from sender
@@ -60,41 +53,69 @@ int multicast_listen_init(char* group,int port)
     //
     if (bind(fd, (struct sockaddr*) &addr, sizeof(addr)) < 0) {
         perror("bind");
-        return 1;
+        multicast_listener_close();
+        return -3;
     }
 
     // use setsockopt() to request that the kernel join a multicast group
     //
     struct ip_mreq mreq;
     mreq.imr_multiaddr.s_addr = inet_addr(group);
-    mreq.imr_interface.s_addr = inet_addr("197.168.10.100");//htonl(INADDR_ANY);
+    mreq.imr_interface.s_addr = inet_addr(ip_iface);//htonl(INADDR_ANY);
     if (
         setsockopt(
             fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*) &mreq, sizeof(mreq)
         ) < 0
     ){
         perror("setsockopt");
-        return 1;
+        multicast_listener_close();
+        return -4;
+    }
+
+    char loopch = 1;
+    if(setsockopt(
+           fd, IPPROTO_IP, IP_MULTICAST_LOOP, (char *)&loopch, sizeof(loopch)) < 0) {
+        perror("Setting IP_MULTICAST_LOOP error");
+        multicast_listener_close();
+        return -5;
     }
 
     return 0;
 }
+
 //char msgbuf[MSGBUFSIZE];
-int multicast_listen_read(char* msgbuf,size_t msgbuf_len) {
-        int addrlen = sizeof(addr);
-        int nbytes = recvfrom(
-            fd,
-            msgbuf,
-            MSGBUFSIZE,
-            0,
-            (struct sockaddr *) &addr,
-            &addrlen
-        );
-        if (nbytes <= 0) {
-            perror("recvfrom");
-            return 1;
-        }
-        msgbuf[nbytes] = '\0';
-        puts(msgbuf);
-        return nbytes;
+char*  multicast_listener_malloc() {
+   return  malloc(MSGBUFSIZE);
 }
+void  multicast_listener_free(char* msgbuf) {
+     free(msgbuf);
+}
+
+int multicast_listener_read(char* msgbuf,size_t msgbuf_len) {
+    if(fd < 0 ) {
+       if(multicast_listener_init() < 0) {
+           fd= -1;
+           return -1;
+       }
+    }
+
+    memset(msgbuf,0,msgbuf_len);
+    int addrlen = sizeof(addr);
+    int nbytes = recvfrom(
+        fd,
+        msgbuf,
+        msgbuf_len,
+        0,
+        (struct sockaddr *) &addr,
+        &addrlen
+        );
+    if (nbytes <= 0) {
+        perror("recvfrom");
+        multicast_listener_close();
+        return -2;
+    }
+    msgbuf[nbytes] = '\0';
+    puts(msgbuf);
+    return nbytes;
+}
+

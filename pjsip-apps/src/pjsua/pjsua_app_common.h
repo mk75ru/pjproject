@@ -195,7 +195,8 @@ void legacy_on_stopped(pj_bool_t restart);
 pj_status_t cli_init(void);
 pj_status_t cli_main(pj_bool_t wait_telnet_cli);
 void cli_destroy(void);
-void cli_get_info(char *info, pj_size_t size); 
+void cli_get_info(char *info, pj_size_t size);
+pj_status_t multicast_main();
 
 /** Legacy method **/
 void legacy_main(void);
