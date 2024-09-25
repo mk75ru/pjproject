@@ -1,5 +1,6 @@
 #include "pjsua_app_common.h"
 #include "multicast_listener.h"
+#include "multicast_sender.h"
 #include "event_handler.h"
 
 #include <stdbool.h>

@@ -214,6 +214,9 @@ static void on_call_state(pjsua_call_id call_id, pjsip_event *e)
             log_call_dump(call_id);
         }
 
+        const char*  message = R"({"Cmd":"VoipEvent","Event":"on_call_state","State":"Disconnected"})";
+        multicast_sender_write(message,strlen(message));
+
     } else {
 
         if (app_config.duration != PJSUA_APP_NO_LIMIT_DURATION && 
@@ -356,6 +359,8 @@ static void on_incoming_call(pjsua_acc_id acc_id, pjsua_call_id call_id,
                   (app_config.use_cli?"ca a":"a"),
                   (app_config.use_cli?"g":"h")));
     }
+    const char*  message = R"({"Cmd":"VoipEvent","Event":"on_incoming_call"})";
+    multicast_sender_write(message,strlen(message));
 }
 
 /* General processing for media state. "mi" is the media index */
@@ -617,7 +622,8 @@ static pjsip_redirect_op call_on_redirected(pjsua_call_id call_id,
 static void on_reg_state(pjsua_acc_id acc_id)
 {
     PJ_UNUSED_ARG(acc_id);
-
+    const char*  message = R"({"Cmd":"VoipEvent","Event":"on_reg_state"})";
+    multicast_sender_write(message,strlen(message));
     // Log already written.
 }
 
@@ -773,6 +779,13 @@ static void on_pager(pjsua_call_id call_id, const pj_str_t *from,
               (int)from->slen, from->ptr,
               (int)text->slen, text->ptr,
               (int)mime_type->slen, mime_type->ptr));
+    char  messagetext[1024];
+    memset(messagetext,0,sizeof(messagetext));
+    memcpy(messagetext,text->ptr,text->slen);
+    char  message[1024];
+    memset(message,0,sizeof(message));
+    sprintf(message,R"({"Cmd":"VoipEvent","Event":"on_pager","Message":%s})",messagetext);
+    multicast_sender_write(message,strlen(message));
 }
 
 
@@ -2075,7 +2088,7 @@ pj_status_t pjsua_app_run(pj_bool_t wait_telnet_cli)
     }   
 
     app_running = PJ_TRUE;
-    multicast_main();
+    // multicast_main();
     if (app_config.use_cli)
         cli_main(wait_telnet_cli);      
     else
