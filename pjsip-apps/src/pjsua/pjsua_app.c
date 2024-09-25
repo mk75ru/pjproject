@@ -627,6 +627,21 @@ static void on_reg_state(pjsua_acc_id acc_id)
     // Log already written.
 }
 
+static void on_reg_state2(pjsua_acc_id acc_id,pjsua_reg_info* reg_info)
+{
+    PJ_UNUSED_ARG(acc_id);
+    if( reg_info->renew) {
+        const char*  message = R"({"Cmd":"VoipEvent","Event":"on_reg_state2","State":"Registration"})";
+        multicast_sender_write(message,strlen(message));
+    }
+    else {
+        const char*  message = R"({"Cmd":"VoipEvent","Event":"on_reg_state2","State":"UnRegistration"})";
+        multicast_sender_write(message,strlen(message));
+    }
+
+    // Log already written.
+}
+
 /*
  * Handler for incoming presence subscription request
  */
@@ -1463,6 +1478,7 @@ static pj_status_t app_init(void)
     app_config.cfg.cb.on_dtmf_digit2 = &call_on_dtmf_callback2;
     app_config.cfg.cb.on_call_redirected = &call_on_redirected;
     app_config.cfg.cb.on_reg_state = &on_reg_state;
+    app_config.cfg.cb.on_reg_state2 = &on_reg_state2;
     app_config.cfg.cb.on_incoming_subscribe = &on_incoming_subscribe;
     app_config.cfg.cb.on_buddy_state = &on_buddy_state;
     app_config.cfg.cb.on_buddy_dlg_event_state = &on_buddy_dlg_event_state;
