@@ -153,7 +153,9 @@ int main_func(int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
+    FILE *f = fopen("/tmp/pjsua-app.pid","w");
+    fprintf(f, "%d", getpid());
+    fflush(f);
     pj_log_set_level(1);
-
     return pj_run_app(&main_func, argc, argv, 0);
 }

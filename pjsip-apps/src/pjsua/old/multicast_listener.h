@@ -13,5 +13,5 @@
 char* multicast_listener_malloc();
 void  multicast_listener_free();
 int   multicast_listener_read(char* msgbuf,size_t msgbuf_len);
-
+int multicast_listener_write(char* msgbuf,size_t msgbuf_len) ;
 #endif // MULTICAST_LISTENER_H_

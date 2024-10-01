@@ -3,6 +3,7 @@
 
 static int fd = -1;
 struct sockaddr_in addr;
+struct sockaddr_in addr_sender;
 #define MSGBUFSIZE 65535
 
 void multicast_listener_close() {
@@ -16,7 +17,7 @@ void multicast_listener_close() {
 int multicast_listener_init()
 {
     const char* group = MULTICAST_GROUP;
-    int port = MULTICAST_PORT_LISTEN_ON_PJSUA_APP;
+    int port = MULTICAST_PORT_LISTEN_ON_EXTERNAL_APP; //MULTICAST_PORT_LISTEN_ON_PJSUA_APP;
     const char* ip_iface = MULTICAST_IP_IFACE;
 
     // create what looks like an ordinary UDP socket
@@ -45,7 +46,7 @@ int multicast_listener_init()
     //
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_ANY); // differs from sender
+    addr.sin_addr.s_addr = inet_addr(group);//htonl(INADDR_ANY); // differs from sender
     addr.sin_port = htons(port);
 
 
@@ -79,6 +80,11 @@ int multicast_listener_init()
         multicast_listener_close();
         return -5;
     }
+
+    memset(&addr_sender, 0, sizeof(addr_sender));
+    addr_sender.sin_family = AF_INET;
+    addr_sender.sin_addr.s_addr = inet_addr(group);
+    addr_sender.sin_port = htons(port);
 
     return 0;
 }
@@ -119,3 +125,29 @@ int multicast_listener_read(char* msgbuf,size_t msgbuf_len) {
     return nbytes;
 }
 
+
+
+
+int multicast_listener_write(char* msgbuf,size_t msgbuf_len) {
+    if(fd < 0 ) {
+       if(multicast_listener_init() < 0) {
+           fd= -1;
+           return -1;
+       }
+    }
+    char ch = 0;
+    int nbytes = sendto(
+        fd,
+        msgbuf,
+        msgbuf_len,
+        0,
+        (struct sockaddr*) &addr,
+        sizeof(addr)
+        );
+    if (nbytes < 0) {
+        perror("sendto");
+        multicast_listener_close();
+        return -2;
+    }
+    return nbytes;
+}

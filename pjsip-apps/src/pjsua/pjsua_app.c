@@ -215,7 +215,7 @@ static void on_call_state(pjsua_call_id call_id, pjsip_event *e)
         }
 
         const char*  message = R"({"Cmd":"VoipEvent","Event":"on_call_state","State":"Disconnected"})";
-        multicast_sender_write(message,strlen(message));
+        event_handler_run(message);
 
     } else {
 
@@ -360,7 +360,7 @@ static void on_incoming_call(pjsua_acc_id acc_id, pjsua_call_id call_id,
                   (app_config.use_cli?"g":"h")));
     }
     const char*  message = R"({"Cmd":"VoipEvent","Event":"on_incoming_call"})";
-    multicast_sender_write(message,strlen(message));
+    event_handler_run(message);
 }
 
 /* General processing for media state. "mi" is the media index */
@@ -623,7 +623,7 @@ static void on_reg_state(pjsua_acc_id acc_id)
 {
     PJ_UNUSED_ARG(acc_id);
     const char*  message = R"({"Cmd":"VoipEvent","Event":"on_reg_state"})";
-    multicast_sender_write(message,strlen(message));
+    event_handler_run(message);
     // Log already written.
 }
 
@@ -632,11 +632,11 @@ static void on_reg_state2(pjsua_acc_id acc_id,pjsua_reg_info* reg_info)
     PJ_UNUSED_ARG(acc_id);
     if( reg_info->renew) {
         const char*  message = R"({"Cmd":"VoipEvent","Event":"on_reg_state2","State":"Registration"})";
-        multicast_sender_write(message,strlen(message));
+        event_handler_run(message);
     }
     else {
         const char*  message = R"({"Cmd":"VoipEvent","Event":"on_reg_state2","State":"UnRegistration"})";
-        multicast_sender_write(message,strlen(message));
+        event_handler_run(message);
     }
 
     // Log already written.
@@ -800,7 +800,7 @@ static void on_pager(pjsua_call_id call_id, const pj_str_t *from,
     char  message[1024];
     memset(message,0,sizeof(message));
     sprintf(message,R"({"Cmd":"VoipEvent","Event":"on_pager","Message":%s})",messagetext);
-    multicast_sender_write(message,strlen(message));
+    event_handler_run(message);
 }
 
 
@@ -2104,7 +2104,7 @@ pj_status_t pjsua_app_run(pj_bool_t wait_telnet_cli)
     }   
 
     app_running = PJ_TRUE;
-    // multicast_main();
+    //multicast_main();
     if (app_config.use_cli)
         cli_main(wait_telnet_cli);      
     else
