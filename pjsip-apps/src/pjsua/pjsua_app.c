@@ -631,8 +631,16 @@ static void on_reg_state2(pjsua_acc_id acc_id,pjsua_reg_info* reg_info)
 {
     PJ_UNUSED_ARG(acc_id);
     if( reg_info->renew) {
-        const char*  message = R"({"Cmd":"VoipEvent","Event":"on_reg_state2","State":"Registration"})";
-        event_handler_run(message);
+        PJ_LOG(3,(THIS_FILE,"[on_reg_state2] status:%d ",reg_info->cbparam->status));
+        PJ_LOG(3,(THIS_FILE,"[on_reg_state2] code:%d "  ,reg_info->cbparam->code));
+        if((reg_info->cbparam->status == 0) && (reg_info->cbparam->code == 200))  {
+            const char*  message = R"({"Cmd":"VoipEvent","Event":"on_reg_state2","State":"Registration"})";
+            event_handler_run(message);
+        }
+        else {
+            const char*  message = R"({"Cmd":"VoipEvent","Event":"on_reg_state2","State":"UnRegistration"})";
+            event_handler_run(message);
+        }
     }
     else {
         const char*  message = R"({"Cmd":"VoipEvent","Event":"on_reg_state2","State":"UnRegistration"})";
