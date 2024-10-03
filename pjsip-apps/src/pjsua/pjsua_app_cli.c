@@ -900,7 +900,14 @@ static pj_status_t cmd_show_account(pj_cli_cmd_val *cval)
                              (int)info.status_text.slen,
                              info.status_text.ptr,
                              info.expires);
-
+            if(info.status == 200)   {
+                const char*  message = R"({"Cmd":"VoipEvent","Event":"on_reg_state2","State":"Registration"})";
+                event_handler_run(message);
+            }
+            else {
+                const char*  message = R"({"Cmd":"VoipEvent","Event":"on_reg_state2","State":"UnRegistration"})";
+                event_handler_run(message);
+            }
         }
 
         pj_ansi_snprintf(out_str, sizeof(out_str),
