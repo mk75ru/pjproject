@@ -262,11 +262,22 @@ static void on_call_state(pjsua_call_id call_id, pjsip_event *e)
                       call_id, (int)call_info.state_text.slen, 
                       call_info.state_text.ptr, code, 
                       (int)reason.slen, reason.ptr));
+            char  message[1024];
+            memset(message,0,sizeof(message));
+            sprintf(message,"{\"Cmd\":\"VoipEvent\",\"CallInfoState\":\"PJSIP_INV_STATE_EARLY\",\"Event\":\"on_call_state\",\"State\":\"%s\"}", call_info.state_text.ptr);
+            printf("1 --------------> %s\n",message);
+            event_handler_run(message);
         } else {
             PJ_LOG(3,(THIS_FILE, "Call %d state changed to %.*s", 
                       call_id,
                       (int)call_info.state_text.slen,
                       call_info.state_text.ptr));
+            char  message[1024];
+            memset(message,0,sizeof(message));
+            sprintf(message,"{\"Cmd\":\"VoipEvent\",\"CallInfoState\":\"!PJSIP_INV_STATE_EARLY\",\"Event\":\"on_call_state\",\"State\":\"%s\"}", call_info.state_text.ptr);
+            printf("2 --------------> %s\n",message);
+            event_handler_run(message);
+
         }
 
         if (current_call==PJSUA_INVALID_ID)
