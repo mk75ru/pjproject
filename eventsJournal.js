@@ -6,10 +6,8 @@ import {pool} from './db.js';
 import {logger,po} from './logger.js';
 
 export default class eventsJournal {
-	//
   constructor(
-    this._isConnected = false;
-  ) {}
+  ) {this._isConnected = false;}
   async run() {
     let cntTimeout = 4;
     while(!this._isConnected) {
