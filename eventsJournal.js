@@ -5,6 +5,13 @@
 import {pool} from './db.js';
 import {logger,po} from './logger.js';
 
+
+function delay(ms) {
+  return new Promise((resolve, reject) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 export default class eventsJournal {
   constructor(
   ) {this._isConnected = false;}
