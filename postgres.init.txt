@@ -1,0 +1,48 @@
+
+
+
+# Типовой сценарий
+
+$ sudo su - postgres
+
+Создадим базу данных, роль для работы с этой базой и предоставим все права на базу для этой роли.
+Для этого подключаемся с серверу как пользователь postgres и выполняем запросы.
+
+$ whoami
+postgres
+
+$ psql
+
+CREATE DATABASE events;
+CREATE ROLE admin_events WITH LOGIN PASSWORD 'incom';
+все права пользователю admin_events на базу данных events
+GRANT ALL PRIVILEGES ON DATABASE events TO admin_events;
+\q
+
+Потом подключаемся как пользователь postgres к новой базе данных events и выполняем еще один запрос.
+
+$ whoami
+postgres
+$ psql --dbname=events
+GRANT ALL PRIVILEGES ON SCHEMA public TO admin_events;
+\q
+
+Права для роли admin_events на схему public внутри базы events
+Обратите внимание, что права на схему public пользователю admin_events выдаются после подключения к базе данных events.
+Схема public существует внутри любой базы данных, ее владельцем является пользователь #postgres.
+Изначально при подключении мы не указываем базу данных, в этом случае подключение идет к базе данных postgres.
+Но для выдачи прав на схему public внутри базы events — нужно подключиться к базе #events.
+Иначе мы выдадим права на схему public внутри базы данных postgres — а это совсем не то, что нужно.
+
+Мы выдаем пользователю admin_events все права на базу данных events, в том числе право CREATE,
+которое позволяет создавать схемы.
+Это дает возможность пользователю admin_events создать схему, например events_schema, на которую у него будет все права,
+поскольку он является ее владельцем.
+И далее создавать таблицы внутри этой схемы — тогда права на схему public пользователю admin_events будут не нужны.
+
+$ whoami
+postgres
+$ psql --username=admin_events --dbname=events --host=localhost
+CREATE SCHEMA events_schema;
+CREATE TABLE events_schema.events_table(id serial PRIMARY KEY, date_ev TIMESTAMP, name_ev VARCHAR(32),description_ev VARCHAR(256), version_data_ev INTEGER, data_ev JSONB);
+\q
