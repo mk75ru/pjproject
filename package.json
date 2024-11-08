@@ -1,0 +1,12 @@
+{
+  "name": "eventsjournal",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Журнал Событий",
+  "main": "eventsJournal.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Krolikov M.S.",
+  "license": "ISC"
+}
