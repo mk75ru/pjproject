@@ -128,12 +128,22 @@ export default class eventsJournal {
     }
   }
 /*
-  {
-    "startDate":<unix time>,
-    "endDate":<unix time>,
-    "evType":["alarmStart","alarmEnd"],
-    "idSess":<integer>
+ {
+    "startDate":<unix time>,  // Начальная дата из диапазона запроса , по времени
+    "endDate":<unix time>,    // Конечная дата из диапазона запроса , по времени
+    "evType":[
+      "alarmStart",           // Запуск оповещения
+      "alarmEnd",             // Завершение оповещения
+      "connected",            // Соединение установлено (транк, астериск, модем, устройтство)
+      "disconnected",         // Соединение разорваное (транк, астериск, модем, устройтство)
+      "palySound",            // Запуск воспроизведения звукозаписи
+      "stopSound",            // Остановка воспроизведения звукозаписи
+    ],
+    "idSess":<integer>        // Номер сеанса оповещения
   }
+  Поля startDate и  endDate должны быть всегда, кроме запроса по idSess
+  Поле evType может отсутствовать или быть пустым массивом
+  Если поле idSess присутствует то поля  startDate  endDate не учавствуют в запросе
  */
 
   async get(request) {
@@ -141,13 +151,26 @@ export default class eventsJournal {
     try {
       let result;
       if(req.idSess === undefined) {
-        result = await pool.query('SELECT * FROM events_schema.events_table WHERE (human_date_ev BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2)) AND (name_ev = ANY($3::text[]))  ',
+
+        if((req.evType !== undefined) && (req.evType.length !== 0) )
+        {
+          result = await pool.query('SELECT * FROM events_schema.events_table WHERE (human_date_ev BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2)) AND (name_ev = ANY($3::text[]))  ',
                                       [req.startDate,req.endDate,req.evType]);
+        }
+        else {
+          result = await pool.query('SELECT * FROM events_schema.events_table WHERE (human_date_ev BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2))',
+                                      [req.startDate,req.endDate]);
+        }
       }
       else {
-        result = await pool.query('SELECT * FROM events_schema.events_table WHERE (name_ev = ANY($1::text[])) AND (id_session_ev = $2)',
+        if((req.evType !== undefined) && (req.evType.length !== 0) ) {
+          result = await pool.query('SELECT * FROM events_schema.events_table WHERE (name_ev = ANY($1::text[])) AND (id_session_ev = $2)',
                                   [req.evType, req.idSess ]);
-
+        }
+        else {
+          result = await pool.query('SELECT * FROM events_schema.events_table WHERE  (id_session_ev = $1)',
+                                  [req.idSess ]);
+        }
       }
       logger.info('eventsJournal: get: %s ',  po(result.rows));
       return  result.rows;
