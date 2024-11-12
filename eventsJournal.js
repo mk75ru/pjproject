@@ -14,7 +14,10 @@ function delay(ms) {
 
 export default class eventsJournal {
   constructor(
-  ) {this._isConnected = false;}
+  ) {
+    this._isConnected = false;
+    this._idSess = 0;
+  }
   async run() {
     let cntTimeout = 4;
     while(!this._isConnected) {
@@ -48,7 +51,31 @@ export default class eventsJournal {
       }
     }
   }
+  async insert_raw(date_ev_sec ,name_ev, description_ev,version_data_ev, data_ev) {
+    if( name_ev === "alarmStart") {
+      this._idSess  = data_ev.idSess;
+    }
+    if(!this._isConnected) {
+      throw new Error();
+    }
+    try {
+      const result = await pool.query('INSERT INTO events_schema.events_table  (date_ev ,name_ev, description_ev,id_session_ev ,version_data_ev, data_ev) VALUES (TO_TIMESTAMP($1), $2, $3, $4, $5, $6) RETURNING *',
+                                      [date_ev_sec ,name_ev, description_ev,this._idSess ,version_data_ev, data_ev]);
+      logger.info('eventsJournal: insert: %s', po(result.rows));
+      if( name_ev === "alarmEnd") {
+        this._idSess  = 0;
+      }
+      return result.rows;
+    } catch (err) {
+      logger.error(err.stack,"eventsJournal: insert");
+      throw(err);
+    }
+  }
+
   async insert(name_ev, description_ev,version_data_ev, data_ev) {
+    if( name_ev === "alarmStart") {
+      this._idSess  = data_ev.idSess;
+    }
     if(!this._isConnected) {
       throw new Error();
     }
@@ -56,10 +83,13 @@ export default class eventsJournal {
       const result_ts = await pool.query('SELECT TO_TIMESTAMP($1)', [Math.round(new Date().getTime() / 1000)]);
       logger.info('eventsJournal: ts:%s', po(result_ts.rows[0].to_timestamp));
       let date_ev =  result_ts.rows[0].to_timestamp;
-      const result = await pool.query('INSERT INTO events_schema.events_table  (date_ev ,name_ev, description_ev, version_data_ev, data_ev) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-                                      [date_ev ,name_ev, description_ev, version_data_ev, data_ev]);
+      const result = await pool.query('INSERT INTO events_schema.events_table  (date_ev ,name_ev, description_ev,id_session_ev ,version_data_ev, data_ev) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+                                      [date_ev ,name_ev, description_ev,this._idSess ,version_data_ev, data_ev]);
       logger.info('eventsJournal: insert: %s', po(result.rows));
-      return result.rows[0].id;
+      if( name_ev === "alarmEnd") {
+        this._idSess  = 0;
+      }
+      return result.rows;
     } catch (err) {
       logger.error(err.stack,"eventsJournal: insert");
       throw(err);
@@ -93,11 +123,54 @@ export default class eventsJournal {
       logger.error(err.stack,"eventsJournal: delete");
     }
   }
+/*
+  {
+    "startDate":<unix time>,
+    "endDate":<unix time>,
+    "evType":["alarmStart","alarmEnd"],
+    "idSess":<integer>
+  }
+ */
+
+  async get(request) {
+    let req =  JSON.parse(request);
+    try {
+      let result;
+      if(req.idSess === undefined) {
+        result = await pool.query('SELECT * FROM events_schema.events_table WHERE (date_ev BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2)) AND (name_ev = ANY($3::text[]))  ',
+                                      [req.startDate,req.endDate,req.evType]);
+      }
+      else {
+        result = await pool.query('SELECT * FROM events_schema.events_table WHERE (name_ev = ANY($1::text[])) AND (id_session_ev = $2)',
+                                  [req.evType, req.idSess ]);
+
+      }
+      logger.info('eventsJournal: get: %s ',  po(result.rows));
+      // let rc =  await pool.query('SELECT EXTRACT(EPOCH FROM TIMESTAMP WITH TIME ZONE \'2001-02-16 20:38:40.12-08\');');
+      // logger.info('eventsJournal: get SELECT EXTRACT EPOCH: %s ',  rc.rows[0].extract);
+      for(let row  of  result.rows) {
+          logger.info('eventsJournal: get SELECT EXTRACT EPOCH: %s ', po(row));
+          const result_ts = await pool.query('SELECT TO_TIMESTAMP($1)', [row.date_ev]);
+          let sql =  "SELECT EXTRACT(EPOCH FROM TIMESTAMP \'" +  result_ts +  "\')"
+          logger.info('eventsJournal: get SELECT EXTRACT EPOCH sql: %s ', sql);
+          let rc = await pool.query(sql);
+//        let rc = await pool.query('SELECT EXTRACT(EPOCH FROM TIMESTAMP \'$1\')', [row.date_ev]);
+          //logger.info('eventsJournal: get SELECT EXTRACT EPOCH: %s ',  rc.rows[0].extract);
+      }
+      return  result.rows;
+    } catch (err) {
+      logger.error(err.stack,"eventsJournal: get");
+    }
+  }
+
 
   async getAll() {
     try {
       const result = await pool.query('SELECT * FROM events_schema.events_table');
       logger.info('eventsJournal: get all: %s ',  po(result.rows));
+      for(let row  of  result.rows) {
+        row.date_ev = await pool.query( 'SELECT EXTRACT(epoch from $1 )',row.date_ev);
+      }
     } catch (err) {
       logger.error(err.stack,"eventsJournal: get all");
     }
