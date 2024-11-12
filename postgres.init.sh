@@ -17,7 +17,7 @@ createdb() {
 }
 
 
-if psql -lqt | cut -d \| -f 1 | grep -qw ${DB_NAME}; then
+if psql -U postgres  -lqt | cut -d \| -f 1 | grep -qw ${DB_NAME}; then
     echo "база ${DB_NAME} уже существует"
     if [[ ${FORCE} == "-f" ]]
     then

@@ -80,15 +80,12 @@ export default class eventsJournal {
       throw new Error();
     }
     try {
-      let unixtime_sec = Math.round(new Date().getTime() / 1000)
-      const result_ts = await pool.query('SELECT TO_TIMESTAMP($1)', [unixtime_sec]);
+      const result_ts = await pool.query('SELECT TO_TIMESTAMP($1)', [Math.round(new Date().getTime() / 1000)]);
       logger.info('eventsJournal: ts:%s', po(result_ts.rows[0].to_timestamp));
-      let date_ev =  unixtime_sec
-      let human_date_ev =  result_ts.rows[0].to_timestamp;
+      let date_ev =  result_ts.rows[0].to_timestamp;
       logger.info('eventsJournal: date_ev:%s',date_ev);
-      logger.info('eventsJournal: human_date_ev:%s',po(human_date_ev));
-      const result = await pool.query('INSERT INTO events_schema.events_table  (date_ev , human_date_ev ,name_ev, description_ev,id_session_ev ,version_data_ev, data_ev) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-                                      [date_ev,human_date_ev,name_ev, description_ev,this._idSess ,version_data_ev, data_ev]);
+      const result = await pool.query('INSERT INTO events_schema.events_table  (date_ev ,name_ev, description_ev,id_session_ev ,version_data_ev, data_ev) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+                                      [date_ev ,name_ev, description_ev,this._idSess ,version_data_ev, data_ev]);
       logger.info('eventsJournal: insert: %s', po(result.rows));
       if( name_ev === "alarmEnd") {
         this._idSess  = 0;
@@ -100,7 +97,7 @@ export default class eventsJournal {
     }
   }
 
-  async update(human_data_ev , id) {
+  async update(data_ev , id) {
     if(!this._isConnected) {
       return;
     }
@@ -108,8 +105,8 @@ export default class eventsJournal {
       return
     }
     try {
-      const result = await pool.query('UPDATE events_schema.events_table SET  human_data_ev = $1  WHERE id = $2 RETURNING *',
-                                      [ human_data_ev, id]);
+      const result = await pool.query('UPDATE events_schema.events_table SET  data_ev = $1  WHERE id = $2 RETURNING *',
+                                      [ data_ev, id]);
       logger.info('eventsJournal: update: %s ',  po(result.rows));
     } catch (err) {
       logger.error(err.stack,"eventsJournal: update");
@@ -141,7 +138,7 @@ export default class eventsJournal {
     try {
       let result;
       if(req.idSess === undefined) {
-        result = await pool.query('SELECT * FROM events_schema.events_table WHERE (human_date_ev BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2)) AND (name_ev = ANY($3::text[]))  ',
+        result = await pool.query('SELECT * FROM events_schema.events_table WHERE (date_ev BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2)) AND (name_ev = ANY($3::text[]))  ',
                                       [req.startDate,req.endDate,req.evType]);
       }
       else {
@@ -150,6 +147,16 @@ export default class eventsJournal {
 
       }
       logger.info('eventsJournal: get: %s ',  po(result.rows));
+
+      //let result2 = await pool.query("SELECT DATE_PART('EPOCH', TIMESTAMP '2020-12-11 02:12:16.906072-08'),EXTRACT('EPOCH' FROM TIMESTAMP '2020-12-11 02:12:16.906072-08')");
+      //logger.info('eventsJournal: get result2: %s ', po(result2));
+      for(let row  of  result.rows) {
+        logger.info('eventsJournal: get row.date_ev: %s ', po(row.date_ev));
+        let result3 = await pool.query("SELECT DATE_PART('EPOCH', TIMESTAMP '$1'),EXTRACT('EPOCH' FROM TIMESTAMP '$1')",[row.date_ev]);
+        logger.info('eventsJournal: get result3: %s ', po(result3));
+      }
+
+
       return  result.rows;
     } catch (err) {
       logger.error(err.stack,"eventsJournal: get");
@@ -161,6 +168,9 @@ export default class eventsJournal {
     try {
       const result = await pool.query('SELECT * FROM events_schema.events_table');
       logger.info('eventsJournal: get all: %s ',  po(result.rows));
+      for(let row  of  result.rows) {
+        row.date_ev = await pool.query( 'SELECT EXTRACT(epoch from $1 )',row.date_ev);
+      }
     } catch (err) {
       logger.error(err.stack,"eventsJournal: get all");
     }
