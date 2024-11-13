@@ -147,7 +147,7 @@ export default class eventsJournal {
  */
 
   async get(request) {
-    let req =  JSON.parse(request);
+    let req = request;
     try {
       let result;
       if(req.idSess === undefined) {
