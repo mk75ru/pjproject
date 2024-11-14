@@ -14,6 +14,7 @@ createdb() {
     psql -U postgres --dbname=${DB_NAME} -c "GRANT ALL PRIVILEGES ON SCHEMA public TO ${DB_USER};"
     psql -U postgres --username=${DB_USER} --dbname=${DB_NAME} --host=localhost -c "CREATE SCHEMA ${DB_SCHEMA};"
     psql -U postgres --username=${DB_USER} --dbname=${DB_NAME} --host=localhost -c "CREATE TABLE ${DB_SCHEMA}.${DB_TABLE}(${DB_TABLE_COLUMNS});"
+    psql -U postgres --username=${DB_USER} --dbname=${DB_NAME} --host=localhost -c "CREATE INDEX ${DB_INDEX_NAME} ON ${DB_SCHEMA}.${DB_TABLE} ($DB_INDEX_FIELD);"
 }
 
 
