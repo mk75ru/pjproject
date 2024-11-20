@@ -189,6 +189,7 @@ export default class eventsJournal {
       let fields = fields_part;
       if(req.allFields !== undefined) {
         if(req.allFields === true) {
+          logger.trace("get full");
           fields = fields_full;
         }
       }
@@ -201,22 +202,49 @@ export default class eventsJournal {
 
         if((req.evType !== undefined) && (req.evType.length !== 0) )
         {
-          result = await pool.query('SELECT $4 FROM events_schema.events_table WHERE (human_date_ev BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2)) AND (name_ev = ANY($3::text[])) ORDER BY id DESC, human_date_ev DESC  ',
-                                    [req.startDate,req.endDate,req.evType,fields]);
+          if (fields === "*") {
+            result = await pool.query('SELECT * FROM events_schema.events_table WHERE (human_date_ev BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2)) AND (name_ev = ANY($3::text[])) ORDER BY id DESC, human_date_ev DESC  ',
+                                    [req.startDate,req.endDate,req.evType]);
+          }
+          else {
+            result = await pool.query('SELECT id, date_ev ,name_ev, description_ev,id_session_ev ,version_data_ev FROM events_schema.events_table WHERE (human_date_ev BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2)) AND (name_ev = ANY($3::text[])) ORDER BY id DESC, human_date_ev DESC  ',
+                                    [req.startDate,req.endDate,req.evType]);
+
+          }
+
         }
         else {
-          result = await pool.query('SELECT $3 FROM events_schema.events_table WHERE (human_date_ev BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2)) ORDER BY id DESC, human_date_ev DESC',
-                                      [req.startDate,req.endDate,fields]);
+          if (fields === "*") {
+            result = await pool.query('SELECT * FROM events_schema.events_table WHERE (human_date_ev BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2)) ORDER BY id DESC, human_date_ev DESC',
+                                      [req.startDate,req.endDate]);
+          }
+          else {
+            result = await pool.query('SELECT id, date_ev ,name_ev, description_ev,id_session_ev ,version_data_ev FROM events_schema.events_table WHERE (human_date_ev BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2)) ORDER BY id DESC, human_date_ev DESC',
+                                      [req.startDate,req.endDate]);
+          }
         }
       }
       else {
         if((req.evType !== undefined) && (req.evType.length !== 0) ) {
-          result = await pool.query('SELECT $3 FROM events_schema.events_table WHERE (name_ev = ANY($1::text[])) AND (id_session_ev = $2) ORDER BY id DESC, human_date_ev DESC',
-                                  [req.evType, req.idSess,fields ]);
+          if (fields === "*") {
+            result = await pool.query('SELECT * FROM events_schema.events_table WHERE (name_ev = ANY($1::text[])) AND (id_session_ev = $2) ORDER BY id DESC, human_date_ev DESC',
+                                  [req.evType, req.idSess ]);
+          }
+          else {
+            result = await pool.query('SELECT id, date_ev ,name_ev, description_ev,id_session_ev ,version_data_ev FROM events_schema.events_table WHERE (name_ev = ANY($1::text[])) AND (id_session_ev = $2) ORDER BY id DESC, human_date_ev DESC',
+                                  [req.evType, req.idSess ]);
+          }
         }
         else {
-          result = await pool.query('SELECT $2 FROM events_schema.events_table WHERE  (id_session_ev = $1) ORDER BY id DESC, human_date_ev DESC',
-                                  [req.idSess,fields ]);
+          if (fields === "*") {
+            result = await pool.query('SELECT * FROM events_schema.events_table WHERE  (id_session_ev = $1) ORDER BY id DESC, human_date_ev DESC',
+                                  [req.idSess ]);
+          }
+          else {
+            result = await pool.query('SELECT id, date_ev ,name_ev, description_ev,id_session_ev ,version_data_ev  FROM events_schema.events_table WHERE  (id_session_ev = $1) ORDER BY id DESC, human_date_ev DESC',
+                                  [req.idSess ]);
+
+          }
         }
       }
       logger.info('eventsJournal: get length: %s ', result.rows.length );
