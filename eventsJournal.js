@@ -158,6 +158,8 @@ export default class eventsJournal {
   }
 /*
  {
+    "idEv":<integer>,         // Если поле задано то в ответ на запрос отправляется
+                              // запись с id заданным в idEv , остальные опции запроса игнорируются
     "startDate":<unix time>,  // Начальная дата из диапазона запроса , по времени
     "endDate":<unix time>,    // Конечная дата из диапазона запроса , по времени
     "evType":[
@@ -168,37 +170,53 @@ export default class eventsJournal {
       "playSound",            // Запуск воспроизведения звукозаписи
       "stopSound",            // Остановка воспроизведения звукозаписи
     ],
-    "idSess":<integer>        // Номер сеанса оповещения
+    "idSess":<integer>,       // Номер сеанса оповещения
+    "allFields":<boolean>     // Если поле задано и равно true то в ответ на запрос отдаются все поля
+                                 записи базы данных
   }
   Поля startDate и  endDate должны быть всегда, кроме запроса по idSess
   Поле evType может отсутствовать или быть пустым массивом
   Если поле idSess присутствует то поля  startDate  endDate не учавствуют в запросе
  */
 
+
   async get(request) {
     let req = request;
     try {
       let result;
-      if(req.idSess === undefined) {
+      let fields_part = "date_ev ,name_ev, description_ev,id_session_ev ,version_data_ev";
+      let fields_full = "*";
+      let fields = fields_part;
+      if(req.allFields !== undefined) {
+        if(req.allFields === true) {
+          fields = fields_full;
+        }
+      }
+      if(req.idEv !== undefined) {
+          result = await pool.query('SELECT * FROM events_schema.events_table WHERE (id = $1)',
+                                  [req.idEv]);
+
+      }
+      else if(req.idSess === undefined) {
 
         if((req.evType !== undefined) && (req.evType.length !== 0) )
         {
-          result = await pool.query('SELECT * FROM events_schema.events_table WHERE (human_date_ev BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2)) AND (name_ev = ANY($3::text[])) ORDER BY id DESC, human_date_ev DESC  ',
-                                      [req.startDate,req.endDate,req.evType]);
+          result = await pool.query('SELECT $4 FROM events_schema.events_table WHERE (human_date_ev BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2)) AND (name_ev = ANY($3::text[])) ORDER BY id DESC, human_date_ev DESC  ',
+                                    [req.startDate,req.endDate,req.evType,fields]);
         }
         else {
-          result = await pool.query('SELECT * FROM events_schema.events_table WHERE (human_date_ev BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2)) ORDER BY id DESC, human_date_ev DESC',
-                                      [req.startDate,req.endDate]);
+          result = await pool.query('SELECT $3 FROM events_schema.events_table WHERE (human_date_ev BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2)) ORDER BY id DESC, human_date_ev DESC',
+                                      [req.startDate,req.endDate,fields]);
         }
       }
       else {
         if((req.evType !== undefined) && (req.evType.length !== 0) ) {
-          result = await pool.query('SELECT * FROM events_schema.events_table WHERE (name_ev = ANY($1::text[])) AND (id_session_ev = $2) ORDER BY id DESC, human_date_ev DESC',
-                                  [req.evType, req.idSess ]);
+          result = await pool.query('SELECT $3 FROM events_schema.events_table WHERE (name_ev = ANY($1::text[])) AND (id_session_ev = $2) ORDER BY id DESC, human_date_ev DESC',
+                                  [req.evType, req.idSess,fields ]);
         }
         else {
-          result = await pool.query('SELECT * FROM events_schema.events_table WHERE  (id_session_ev = $1) ORDER BY id DESC, human_date_ev DESC',
-                                  [req.idSess ]);
+          result = await pool.query('SELECT $2 FROM events_schema.events_table WHERE  (id_session_ev = $1) ORDER BY id DESC, human_date_ev DESC',
+                                  [req.idSess,fields ]);
         }
       }
       logger.info('eventsJournal: get length: %s ', result.rows.length );
