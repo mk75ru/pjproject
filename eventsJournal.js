@@ -43,17 +43,28 @@ export default class eventsJournal {
         this._isConnected = true;
         let drop_chunks = async ()=>{
           try{
-            const result = await pool.query(
-              "SELECT drop_chunks('events_schema.events_table', older_than => INTERVAL '$1',newer_than => now() + interval '1 day');",
-              [process.env.DB_DROP_INTERVAL]);
-            logger.trace('eventsJournal: result:%s', po(result.rows[0]));
+            {
+              let selectdrop  = "SELECT drop_chunks('events_schema.events_table', older_than => INTERVAL '" + process.env.DB_DROP_INTERVAL + "');"
+              const result = await pool.query(selectdrop);
+              logger.info('eventsJournal: drop older_than result:%s', po(result.rows[0]));
+            }
+/*
+            {
+              let selectdrop  = "SELECT drop_chunks('events_schema.events_table', newer_than =>  INTERVAL '1 day');"
+              const result = await pool.query(selectdrop);
+              logger.info('eventsJournal: drop newer_than  result:%s', po(result.rows[0]));
+            }
+*/
+//            const result = await pool.query(
+//              "SELECT drop_chunks('events_schema.events_table', older_than => INTERVAL '$1',newer_than => now() + interval '1 day');",
+//              [process.env.DB_DROP_INTERVAL]);
           }
           catch(e) {
             logger.error(e,'Error drop_chunks');
           }
         };
         await drop_chunks();
-        setInterval(()=>{
+        setInterval(async ()=>{
           await drop_chunks();
         }, 1000*3600*24*7); // 1 week, 604800000
       } catch(err) {
