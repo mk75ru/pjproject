@@ -41,6 +41,32 @@ export default class eventsJournal {
         let res = await pool.query('SELECT NOW()');
         logger.info('Connected to the database: %s ', po(res.rows));
         this._isConnected = true;
+        let drop_chunks = async ()=>{
+          try{
+            {
+              let selectdrop  = "SELECT drop_chunks('events_schema.events_table', older_than => INTERVAL '" + process.env.DB_DROP_INTERVAL + "');"
+              const result = await pool.query(selectdrop);
+              logger.info('eventsJournal: drop older_than result:%s', po(result.rows[0]));
+            }
+/*
+            {
+              let selectdrop  = "SELECT drop_chunks('events_schema.events_table', newer_than =>  INTERVAL '1 day');"
+              const result = await pool.query(selectdrop);
+              logger.info('eventsJournal: drop newer_than  result:%s', po(result.rows[0]));
+            }
+*/
+//            const result = await pool.query(
+//              "SELECT drop_chunks('events_schema.events_table', older_than => INTERVAL '$1',newer_than => now() + interval '1 day');",
+//              [process.env.DB_DROP_INTERVAL]);
+          }
+          catch(e) {
+            logger.error(e,'Error drop_chunks');
+          }
+        };
+        await drop_chunks();
+        setInterval(async ()=>{
+          await drop_chunks();
+        }, 1000*3600*24*7); // 1 week, 604800000
       } catch(err) {
         logger.error(err.stack,'Error connecting to the database');
         cntTimeout--;
@@ -157,21 +183,21 @@ export default class eventsJournal {
 
         if((req.evType !== undefined) && (req.evType.length !== 0) )
         {
-          result = await pool.query('SELECT * FROM events_schema.events_table WHERE (human_date_ev BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2)) AND (name_ev = ANY($3::text[]))  ',
+          result = await pool.query('SELECT * FROM events_schema.events_table WHERE (human_date_ev BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2)) AND (name_ev = ANY($3::text[])) ORDER BY id DESC, human_date_ev DESC  ',
                                       [req.startDate,req.endDate,req.evType]);
         }
         else {
-          result = await pool.query('SELECT * FROM events_schema.events_table WHERE (human_date_ev BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2))',
+          result = await pool.query('SELECT * FROM events_schema.events_table WHERE (human_date_ev BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2)) ORDER BY id DESC, human_date_ev DESC',
                                       [req.startDate,req.endDate]);
         }
       }
       else {
         if((req.evType !== undefined) && (req.evType.length !== 0) ) {
-          result = await pool.query('SELECT * FROM events_schema.events_table WHERE (name_ev = ANY($1::text[])) AND (id_session_ev = $2)',
+          result = await pool.query('SELECT * FROM events_schema.events_table WHERE (name_ev = ANY($1::text[])) AND (id_session_ev = $2) ORDER BY id DESC, human_date_ev DESC',
                                   [req.evType, req.idSess ]);
         }
         else {
-          result = await pool.query('SELECT * FROM events_schema.events_table WHERE  (id_session_ev = $1)',
+          result = await pool.query('SELECT * FROM events_schema.events_table WHERE  (id_session_ev = $1) ORDER BY id DESC, human_date_ev DESC',
                                   [req.idSess ]);
         }
       }
@@ -186,12 +212,20 @@ export default class eventsJournal {
 
   async getAll() {
     try {
-      const result = await pool.query('SELECT * FROM events_schema.events_table');
-      logger.trace('eventsJournal: get all: %s ',  po(result.rows));
+      const result = await pool.query('SELECT * FROM events_schema.events_table ORDER BY id DESC, human_date_ev DESC ');
+      logger.info('eventsJournal: get all: %s ',  po(result.rows));
     } catch (err) {
       logger.error(err.stack,"eventsJournal: get all");
     }
   }
 
+  async delete() {
+    try {
+      const result = await pool.query('SELECT drop_chunks(events_schema.events_table, older_than => INTERVAL \'5 seconds\'  ) ');
+      logger.info('eventsJournal: delete: %s ',  po(result.rows));
+    } catch (err) {
+      logger.error(err.stack,"eventsJournal: delete");
+    }
+  }
 
 };
