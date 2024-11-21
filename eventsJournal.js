@@ -121,15 +121,43 @@ export default class eventsJournal {
 
       if( name_ev === "alarmEnd") {
         this._idSess  = 0;
+        this._idAlarmEnd  = result.rows[0].id;
       }
-      return result.rows;
+      return result.rows[0].id;
     } catch (err) {
       logger.error(err.stack,"eventsJournal: insert");
       throw(err);
     }
   }
+  /*
+   * Функция для добавление в поле data_ev дополнительной информации
+   *  data_ev - данные в формате json
+   *  id записи полученный при вызове insert
+   *  если id не задан то берется id последнейго события alarmEnd
+   */
+  async add(data_ev , id) {
+    if(!this._isConnected) {
+      return;
+    }
+    if(id === undefined) {
+      if(this._idAlarmEnd === undefined) {
+        return
+      }
+      id = this._idAlarmEnd;
+    }
+    try {
+      const onerecord = await pool.query(
+         'SELECT * FROM events_schema.events_table WHERE (id = $1)',[id]);
+      let new_data_ev  = {...data_ev,...onerecord.rows[0].data_ev}
+      const result = await pool.query('UPDATE events_schema.events_table SET  data_ev = $1  WHERE id = $2 RETURNING *',
+                                      [ new_data_ev, id]);
+      logger.trace('eventsJournal: add: %s ',  po(result.rows));
+    } catch (err) {
+      logger.error(err.stack,"eventsJournal: add");
+    }
+  }
 
-  async update(human_data_ev , id) {
+  async update(data_ev , id) {
     if(!this._isConnected) {
       return;
     }
@@ -137,8 +165,8 @@ export default class eventsJournal {
       return
     }
     try {
-      const result = await pool.query('UPDATE events_schema.events_table SET  human_data_ev = $1  WHERE id = $2 RETURNING *',
-                                      [ human_data_ev, id]);
+      const result = await pool.query('UPDATE events_schema.events_table SET  data_ev = $1  WHERE id = $2 RETURNING *',
+                                      [data_ev, id]);
       logger.trace('eventsJournal: update: %s ',  po(result.rows));
     } catch (err) {
       logger.error(err.stack,"eventsJournal: update");
@@ -209,9 +237,7 @@ export default class eventsJournal {
           else {
             result = await pool.query('SELECT id, date_ev ,name_ev, description_ev,id_session_ev ,version_data_ev FROM events_schema.events_table WHERE (human_date_ev BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2)) AND (name_ev = ANY($3::text[])) ORDER BY id DESC, human_date_ev DESC  ',
                                     [req.startDate,req.endDate,req.evType]);
-
           }
-
         }
         else {
           if (fields === "*") {
@@ -243,7 +269,6 @@ export default class eventsJournal {
           else {
             result = await pool.query('SELECT id, date_ev ,name_ev, description_ev,id_session_ev ,version_data_ev  FROM events_schema.events_table WHERE  (id_session_ev = $1) ORDER BY id DESC, human_date_ev DESC',
                                   [req.idSess ]);
-
           }
         }
       }
@@ -254,7 +279,6 @@ export default class eventsJournal {
       logger.error(err.stack,"eventsJournal: get");
     }
   }
-
 
   async getAll() {
     try {
