@@ -25,10 +25,11 @@ export default class eventsJournal {
     }
   }
   setNewSession(idSess) {
-    this._isRunning = true
-    this._counterAlarmClientsStart =  this._amountAlarmClients;
-    this._counterAlarmClientsEnd =  this._amountAlarmClients;
+    this._isRunning = true;
+    this._counterAlarmStart = this._amountAlarmClients;
+    this._counterAlarmEnd   = this._amountAlarmClients;
     this._idSess  = idSess;
+    this._dataEv  = {}
   }
   isRunning() {
     return this._isRunning;
@@ -119,36 +120,41 @@ export default class eventsJournal {
       throw new Error();
     }
     try {
-      if( name_ev === "alarmStart") {
-        this._idSess  = data_ev.idSess;
-      }
-      if( name_ev === "alarmEnd") {
-        const alarmEndDesc = await pool.query(
-          'SELECT * FROM events_schema.events_table WHERE (id_session_ev = $1) AND (name_ev = "alarmEnd")',
-          [this._idSess]);
-        if(alarmEndDesc.rows[0].length !== 0 ) {
-          let id = alarmEndDesc.rows[0].id
-          let new_data_ev  = {...data_ev,...onerecord.rows[0].data_ev}
-          const result = await pool.query('UPDATE events_schema.events_table SET  data_ev = $1  WHERE id = $2 RETURNING *',
-                                      [ new_data_ev, id]);
-          return result.rows[0];
+      let data_ev_save = null;
+      if(( name_ev === "alarmStart") && (this._counterAlarmStart > 0)) {
+        this._dataEv["alarmStart"] = {this._dataEv["alarmStart"],...data_ev}
+        this._counterAlarmStart--;
+        if(this._counterAlarmStart === 0) {
+          data_ev_save = this._dataEv["alarmStart"];
         }
       }
-      let unixtime_sec = Math.round(new Date().getTime() / 1000)
-      const result_ts = await pool.query('SELECT TO_TIMESTAMP($1)', [unixtime_sec]);
-      logger.trace('eventsJournal: ts:%s', po(result_ts.rows[0].to_timestamp));
-      let date_ev =  unixtime_sec
-      let human_date_ev =  result_ts.rows[0].to_timestamp;
-      const result = await pool.query('INSERT INTO events_schema.events_table  (date_ev , human_date_ev ,name_ev, description_ev,id_session_ev ,version_data_ev, data_ev) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-                                      [date_ev,human_date_ev,name_ev, description_ev,this._idSess ,version_data_ev, data_ev]);
-      logger.info('eventsJournal: date_ev=%s human_date_ev=%s  name_ev=%s description_ev=%s idSess=%s',
-                  date_ev , human_date_ev ,name_ev, description_ev,this._idSess);
-      logger.trace('eventsJournal: insert: %s', po(result.rows));
-
-      if( name_ev === "alarmEnd") {
-        this._idSess  = 0;
+      else if(( name_ev === "alarmEnd") && (this._counterAlarmEnd > 0)) {
+        this._dataEv["alarmEnd"] = {this._dataEv["alarmEnd"],...data_ev}
+        this._counterAlarmEnd--;
+        if(this._counterAlarmEnd === 0) {
+          data_ev_save = this._dataEv["alarmEnd"];
+        }
       }
-      return result.rows[0];
+      else {
+        data_ev_save = data_ev;
+      }
+      if(data_ev_save !== null) {
+        let unixtime_sec = Math.round(new Date().getTime() / 1000)
+        const result_ts = await pool.query('SELECT TO_TIMESTAMP($1)', [unixtime_sec]);
+        logger.trace('eventsJournal: ts:%s', po(result_ts.rows[0].to_timestamp));
+        let date_ev =  unixtime_sec
+        let human_date_ev =  result_ts.rows[0].to_timestamp;
+        const result = await pool.query('INSERT INTO events_schema.events_table  (date_ev , human_date_ev ,name_ev, description_ev,id_session_ev ,version_data_ev, data_ev) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+                                      [date_ev,human_date_ev,name_ev, description_ev,this._idSess ,version_data_ev, data_ev_save]);
+        logger.info('eventsJournal: date_ev=%s human_date_ev=%s  name_ev=%s description_ev=%s idSess=%s',
+                    date_ev , human_date_ev ,name_ev, description_ev,this._idSess);
+        logger.trace('eventsJournal: insert: %s', po(result.rows));
+        if( name_ev === "alarmEnd") {
+          this._idSess  = 0;
+        }
+        return result.rows[0];
+      }
+      return null;
     } catch (err) {
       logger.error(err.stack,"eventsJournal: insert");
       throw(err);
