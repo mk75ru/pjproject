@@ -13,10 +13,25 @@ function delay(ms) {
 }
 
 export default class eventsJournal {
-  constructor(
-  ) {
+  constructor(amountAlarmClients) {
     this._isConnected = false;
     this._idSess = 0;
+    this._isRunning = false;
+    if(amountAlarmClients === undefined) {
+      this._amountAlarmClients=1;
+    }
+    else {
+      this._amountAlarmClients=amountAlarmClients;
+    }
+  }
+  setNewSession(idSess) {
+    this._isRunning = true
+    this._counterAlarmClientsStart =  this._amountAlarmClients;
+    this._counterAlarmClientsEnd =  this._amountAlarmClients;
+    this._idSess  = idSess;
+  }
+  isRunning() {
+    return this._isRunning;
   }
   async run() {
     let cntTimeout = 4;
@@ -99,15 +114,26 @@ export default class eventsJournal {
       throw(err);
     }
   }
-
-  async insert(name_ev, description_ev,version_data_ev, data_ev) {
-    if( name_ev === "alarmStart") {
-      this._idSess  = data_ev.idSess;
-    }
+  async insert(name_ev, description_ev, version_data_ev, data_ev) {
     if(!this._isConnected) {
       throw new Error();
     }
     try {
+      if( name_ev === "alarmStart") {
+        this._idSess  = data_ev.idSess;
+      }
+      if( name_ev === "alarmEnd") {
+        const alarmEndDesc = await pool.query(
+          'SELECT * FROM events_schema.events_table WHERE (id_session_ev = $1) AND (name_ev = "alarmEnd")',
+          [this._idSess]);
+        if(alarmEndDesc.rows[0].length !== 0 ) {
+          let id = alarmEndDesc.rows[0].id
+          let new_data_ev  = {...data_ev,...onerecord.rows[0].data_ev}
+          const result = await pool.query('UPDATE events_schema.events_table SET  data_ev = $1  WHERE id = $2 RETURNING *',
+                                      [ new_data_ev, id]);
+          return result.rows[0];
+        }
+      }
       let unixtime_sec = Math.round(new Date().getTime() / 1000)
       const result_ts = await pool.query('SELECT TO_TIMESTAMP($1)', [unixtime_sec]);
       logger.trace('eventsJournal: ts:%s', po(result_ts.rows[0].to_timestamp));
@@ -121,42 +147,13 @@ export default class eventsJournal {
 
       if( name_ev === "alarmEnd") {
         this._idSess  = 0;
-        this._idAlarmEnd  = result.rows[0].id;
       }
-      return result.rows[0].id;
+      return result.rows[0];
     } catch (err) {
       logger.error(err.stack,"eventsJournal: insert");
       throw(err);
     }
   }
-  /*
-   * Функция для добавление в поле data_ev дополнительной информации
-   *  data_ev - данные в формате json
-   *  id записи полученный при вызове insert
-   *  если id не задан то берется id последнейго события alarmEnd
-   */
-  async add(data_ev , id) {
-    if(!this._isConnected) {
-      return;
-    }
-    if(id === undefined) {
-      if(this._idAlarmEnd === undefined) {
-        return
-      }
-      id = this._idAlarmEnd;
-    }
-    try {
-      const onerecord = await pool.query(
-         'SELECT * FROM events_schema.events_table WHERE (id = $1)',[id]);
-      let new_data_ev  = {...data_ev,...onerecord.rows[0].data_ev}
-      const result = await pool.query('UPDATE events_schema.events_table SET  data_ev = $1  WHERE id = $2 RETURNING *',
-                                      [ new_data_ev, id]);
-      logger.trace('eventsJournal: add: %s ',  po(result.rows));
-    } catch (err) {
-      logger.error(err.stack,"eventsJournal: add");
-    }
-  }
-
   async update(data_ev , id) {
     if(!this._isConnected) {
       return;
@@ -170,18 +167,6 @@ export default class eventsJournal {
       logger.trace('eventsJournal: update: %s ',  po(result.rows));
     } catch (err) {
       logger.error(err.stack,"eventsJournal: update");
-    }
-  }
-
-  async delete(id) {
-    if(!this._isConnected) {
-      return;
-    }
-    try {
-      const result =await pool.query('DELETE FROM events_schema.events_table WHERE id = $1', [id]);
-      logger.trace('eventsJournal: delete: %s ',  po(result.rows));
-    } catch (err) {
-      logger.error(err.stack,"eventsJournal: delete");
     }
   }
 /*
@@ -206,8 +191,6 @@ export default class eventsJournal {
   Поле evType может отсутствовать или быть пустым массивом
   Если поле idSess присутствует то поля  startDate  endDate не учавствуют в запросе
  */
-
-
   async get(request) {
     let req = request;
     try {
@@ -279,7 +262,6 @@ export default class eventsJournal {
       logger.error(err.stack,"eventsJournal: get");
     }
   }
-
   async getAll() {
     try {
       const result = await pool.query('SELECT * FROM events_schema.events_table ORDER BY id DESC, human_date_ev DESC ');
@@ -288,14 +270,15 @@ export default class eventsJournal {
       logger.error(err.stack,"eventsJournal: get all");
     }
   }
-
-  async delete() {
+  async delete(id) {
+    if(!this._isConnected) {
+      return;
+    }
     try {
-      const result = await pool.query('SELECT drop_chunks(events_schema.events_table, older_than => INTERVAL \'5 seconds\'  ) ');
-      logger.info('eventsJournal: delete: %s ',  po(result.rows));
+      const result =await pool.query('DELETE FROM events_schema.events_table WHERE id = $1', [id]);
+      logger.trace('eventsJournal: delete: %s ',  po(result.rows));
     } catch (err) {
       logger.error(err.stack,"eventsJournal: delete");
     }
   }
-
 };
