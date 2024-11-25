@@ -122,14 +122,15 @@ export default class eventsJournal {
     try {
       let data_ev_save = null;
       if(( name_ev === "alarmStart") && (this._counterAlarmStart > 0)) {
-        this._dataEv["alarmStart"] = {this._dataEv["alarmStart"],...data_ev}
+        this._dataEv["alarmStart"] = {...this._dataEv["alarmStart"],...data_ev}
         this._counterAlarmStart--;
         if(this._counterAlarmStart === 0) {
           data_ev_save = this._dataEv["alarmStart"];
         }
       }
-      else if(( name_ev === "alarmEnd") && (this._counterAlarmEnd > 0)) {
-        this._dataEv["alarmEnd"] = {this._dataEv["alarmEnd"],...data_ev}
+      else
+      if(( name_ev === "alarmEnd") && (this._counterAlarmEnd > 0)) {
+        this._dataEv["alarmEnd"] = {...this._dataEv["alarmEnd"],...data_ev}
         this._counterAlarmEnd--;
         if(this._counterAlarmEnd === 0) {
           data_ev_save = this._dataEv["alarmEnd"];
@@ -138,6 +139,7 @@ export default class eventsJournal {
       else {
         data_ev_save = data_ev;
       }
+
       if(data_ev_save !== null) {
         let unixtime_sec = Math.round(new Date().getTime() / 1000)
         const result_ts = await pool.query('SELECT TO_TIMESTAMP($1)', [unixtime_sec]);
