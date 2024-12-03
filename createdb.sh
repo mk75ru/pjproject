@@ -1,6 +1,7 @@
 #!/usr/bin/env sh
 
-source ./.env
+
+source /opt/rmo-0-backend/.env
 
 export PGPASSWORD="incom"
 FORCE=$1
