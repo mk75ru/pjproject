@@ -22,8 +22,8 @@ createdb() {
     psql -U postgres --username=${DB_USER} --dbname=${DB_NAME} --host=localhost \
         -c "SELECT create_hypertable('${DB_SCHEMA}.${DB_TABLE}','${DB_TIMESTAMP_COLUMN}', \
         chunk_time_interval => INTERVAL '${DB_INTERVAL}');"
-#    psql -U postgres --username=${DB_USER} --dbname=${DB_NAME} --host=localhost \
-#        -c "SELECT add_retention_policy('${DB_SCHEMA}.${DB_TABLE}', drop_after => INTERVAL '${DB_DROP_INTERVAL}');"
+    psql -U postgres --username=${DB_USER} --dbname=${DB_NAME} --host=localhost \
+        -c "SELECT add_retention_policy('${DB_SCHEMA}.${DB_TABLE}', drop_after => INTERVAL '${DB_DROP_INTERVAL}');"
     psql -U postgres --username=${DB_USER} --dbname=${DB_NAME} --host=localhost \
         -c "CREATE INDEX ${DB_INDEX_NAME} ON ${DB_SCHEMA}.${DB_TABLE} ($DB_INDEX_FIELD);"
 
