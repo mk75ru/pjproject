@@ -261,6 +261,7 @@ export default class eventsJournal {
       return  result.rows;
     } catch (err) {
       logger.error(err.stack,"eventsJournal: get");
+      throw(err);
     }
   }
   async getAll() {
