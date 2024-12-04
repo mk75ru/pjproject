@@ -57,7 +57,7 @@ export default class eventsJournal {
         let res = await pool.query('SELECT NOW()');
         logger.info('Connected to the database: %s ', po(res.rows));
         this._isConnected = true;
-        /*
+
         let drop_chunks = async ()=>{
           try{
             {
@@ -74,7 +74,6 @@ export default class eventsJournal {
         setInterval(async ()=>{
           await drop_chunks();
         }, 1000*3600*24*7); // 1 week, 604800000
-        */
 
       } catch(err) {
         logger.error(err.stack,'Error connecting to the database');
