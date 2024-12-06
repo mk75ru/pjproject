@@ -2,8 +2,25 @@
  * Работа с базой данных
  */
 
-import {pool} from './db.js';
+import pg from 'pg'
+const { Pool } = pg
+let pool;
+import 'dotenv/config'
+
+
 import {logger,po} from './logger.js';
+
+
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename)
+
+
+
+
+
 
 
 function delay(ms) {
@@ -24,6 +41,9 @@ export default class eventsJournal {
       this._amountAlarmClients=amountAlarmClients;
     }
   }
+  getModuleDir() {
+    return __dirname + "/";
+  }
   setNewSession(idSess) {
     this._isRunning = true;
     this._counterAlarmStart = this._amountAlarmClients;
@@ -34,7 +54,28 @@ export default class eventsJournal {
   isRunning() {
     return this._isRunning;
   }
+  async stop() {
+    if (this._client !== undefined) {
+      if (this._timer !== undefined ) clearInterval(this._timer);
+      this._timer = undefined;
+      this._client.release();
+      this._client = undefined;
+      this._isConnected = false;
+      await pool.end();
+      logger.info('[poolstop] - pool is stopped');
+    }
+  }
+
   async run() {
+    pool = new Pool({
+      user: process.env.DB_USER,
+      host: process.env.DB_HOST,
+      database: process.env.DB_NAME,
+      password: process.env.DB_PASSWORD,
+      port: process.env.DB_PORT,
+    });
+
+
     let cntTimeout = 4;
     while(!this._isConnected) {
       try{
@@ -53,7 +94,7 @@ export default class eventsJournal {
         pool.on('remove', (client) => {
           logger.info('[poolevent] - remove');
         });
-
+        this._client = await pool.connect();
         let res = await pool.query('SELECT NOW()');
         logger.info('Connected to the database: %s ', po(res.rows));
         this._isConnected = true;
@@ -71,7 +112,7 @@ export default class eventsJournal {
           }
         };
         await drop_chunks();
-        setInterval(async ()=>{
+        this._timer =  setInterval(async ()=>{
           await drop_chunks();
         }, 1000*3600*24*7); // 1 week, 604800000
 

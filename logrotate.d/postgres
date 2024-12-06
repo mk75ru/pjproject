@@ -1,0 +1,10 @@
+
+/var/lib/postgresql/16/data/postmaster.log  {
+        missingok
+        notifempty
+        weekly
+        size 10M
+        rotate 10
+        compress
+        delaycompress
+}
