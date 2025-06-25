@@ -324,3 +324,5 @@ export default class eventsJournal {
     }
   }
 };
+
+export let evJrnl = new eventsJournal();
