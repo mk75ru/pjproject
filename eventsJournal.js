@@ -80,23 +80,23 @@ export default class eventsJournal {
     while(!this._isConnected) {
       try{
         pool.on('connect', (client) => {
-          logger.info('[poolevent] - connect');
+          logger.trace('[poolevent] - connect');
         });
         pool.on('acquire', (client) => {
-          logger.info('[poolevent] - acquire');
+          logger.trace('[poolevent] - acquire');
         });
         pool.on('error', (err, client) => {
-          logger.info('[poolevent] - error %s',po(err));
+          logger.trace('[poolevent] - error %s',po(err));
         });
         pool.on('release', (err, client) => {
           logger.info('[poolevent] - release %s',po(err));
         });
         pool.on('remove', (client) => {
-          logger.info('[poolevent] - remove');
+          logger.trace('[poolevent] - remove');
         });
         this._client = await pool.connect();
         let res = await pool.query('SELECT NOW()');
-        logger.info('Connected to the database: %s ', po(res.rows));
+        logger.trace('Connected to the database: %s ', po(res.rows));
         this._isConnected = true;
 
         let drop_chunks = async ()=>{
