@@ -29,7 +29,7 @@ function delay(ms) {
   });
 }
 
-export default class eventsJournal {
+class eventsJournal {
   constructor(amountAlarmClients) {
     this._isConnected = false;
     this._idSess = 0;
@@ -66,7 +66,14 @@ export default class eventsJournal {
     }
   }
 
-  async run() {
+  async run(amountAlarmClients) {
+    if(amountAlarmClients === undefined) {
+      this._amountAlarmClients=1;
+    }
+    else {
+      this._amountAlarmClients=amountAlarmClients;
+    }
+
     pool = new Pool({
       user: process.env.DB_USER,
       host: process.env.DB_HOST,
@@ -74,7 +81,6 @@ export default class eventsJournal {
       password: process.env.DB_PASSWORD,
       port: process.env.DB_PORT,
     });
-
 
     let cntTimeout = 4;
     while(!this._isConnected) {
@@ -96,7 +102,7 @@ export default class eventsJournal {
         });
         this._client = await pool.connect();
         let res = await pool.query('SELECT NOW()');
-        logger.trace('Connected to the database: %s ', po(res.rows));
+        logger.info('Connected to the database: %s ', po(res.rows));
         this._isConnected = true;
 
         let drop_chunks = async ()=>{
@@ -325,4 +331,8 @@ export default class eventsJournal {
   }
 };
 
-export let evJrnl = new eventsJournal();
+
+const evJrnl = new eventsJournal();
+export default evJrnl;
+
+//export let evJrnl = new eventsJournal(1);
