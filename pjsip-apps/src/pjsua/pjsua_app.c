@@ -59,6 +59,54 @@ static pjsua_app_cfg_t app_cfg;
 pj_str_t                    uri_arg;
 pj_bool_t                   app_running = PJ_FALSE;
 
+
+typedef struct {
+    char name[1024];
+    char sip[1024];
+} ParsedResult;
+
+int parse_quoted_string(const char* input, ParsedResult* result) {
+    memset(result->name, 0, sizeof(*result->name));
+    memset(result->sip, 0, sizeof(*result->sip));
+    const char* ptr = input;
+    
+    // Пропускаем пробелы в начале
+    while (*ptr == ' ') ptr++;
+    
+    // Проверяем наличие открывающей кавычки
+    if (*ptr != '"') return -1;
+    ptr++;
+    
+    // Извлекаем имя до закрывающей кавычки
+    int i = 0;
+    while (*ptr != '"' && *ptr != '\0' && i < sizeof(result->name) - 1) {
+        result->name[i++] = *ptr++;
+    }
+    result->name[i] = '\0';
+    
+    if (*ptr != '"') return -2;
+    ptr++;
+    
+    // Пропускаем пробелы после кавычки
+    while (*ptr == ' ') ptr++;
+    
+    // Проверяем наличие открывающей угловой скобки
+    if (*ptr != '<') return -3;
+    ptr++;
+    
+    // Извлекаем SIP адрес до закрывающей скобки
+    i = 0;
+    while (*ptr != '>' && *ptr != '\0' && i < sizeof(result->sip) - 1) {
+        result->sip[i++] = *ptr++;
+    }
+    result->sip[i] = '\0';
+    
+    if (*ptr != '>') return -4;
+    
+    return 0; // Успешный парсинг
+}
+
+
 /*****************************************************************************
  * Configuration manipulation
  */
@@ -370,7 +418,17 @@ static void on_incoming_call(pjsua_acc_id acc_id, pjsua_call_id call_id,
                   (app_config.use_cli?"ca a":"a"),
                   (app_config.use_cli?"g":"h")));
     }
-    const char*  message = R"({"Cmd":"VoipEvent","Event":"on_incoming_call"})";
+    const char *caller_id = call_info.remote_info.ptr;
+    printf("Incoming call from: %s\n", caller_id);
+    ParsedResult caller_id_parsed;
+    int rc =parse_quoted_string(caller_id, &caller_id_parsed); 
+    const char* caller_id_name = caller_id_parsed.name;
+    if(rc < 0 ) {
+        caller_id_name = "";
+    }
+    char  message[1024];
+    memset(message,0,sizeof(message));
+    sprintf(message,R"({"Cmd":"VoipEvent","Event":"on_incoming_call","CallerID":"%s"})",caller_id_name);
     event_handler_run(message);
 }
 
