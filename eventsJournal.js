@@ -217,10 +217,8 @@ class eventsJournal {
       logger.error(err.stack,"eventsJournal: update");
     }
   }
-
-
   // Версия с возможностью указать поле name_ev (если оно может называться по-разному)
-async  getDataWithCustomNameEv_(tableName, timeField, nameEvField, startTime, endTime, targetValues = []) {
+  async getDataWithCustomNameEv_(tableName, timeField, nameEvField, startTime, endTime, targetValues = []) {
     //const client = await pool.connect();                      
     try {
         const targetPlaceholders = targetValues.map((_, index) => `$${index + 3}`).join(', ');
@@ -288,10 +286,8 @@ ORDER BY id DESC, ${timeField} DESC
     } finally {
         //client.release();
     }
-}
-
-
-async getDataWithCustomNameEv(tableName, timeField, nameEvField, startTime, endTime, targetValues = [],abonentNumbersList = []) {
+  }
+  async getDataWithCustomNameEv(tableName, timeField, nameEvField, startTime, endTime, targetValues = [],abonentNumbersList = []) {
     //const client = await pool.connect();
     
     try {
@@ -421,16 +417,14 @@ async getDataWithCustomNameEv(tableName, timeField, nameEvField, startTime, endT
     } finally {
         //client.release();
     }
-}
-
-async getTargetPresenceTableHuman(tableName, timeField, nameEvField, startDateHuman, endDateHuman, targetValues = [],abonentNumbersList = []) {
+  }
+  async getTargetPresenceTableHuman(tableName, timeField, nameEvField, startDateHuman, endDateHuman, targetValues = [],abonentNumbersList = []) {
   return await this.getTargetPresenceTable(tableName, timeField, nameEvField, 
     Math.floor(new Date(startDateHuman).getTime() / 1000), 
     Math.floor(new Date(endDateHuman).getTime() / 1000), 
     targetValues);
-}
-
-async getTargetPresenceTable(tableName, timeField, nameEvField, startTime, endTime, targetValues = [],abonentNumbersList = []) {
+  }
+  async getTargetPresenceTable(tableName, timeField, nameEvField, startTime, endTime, targetValues = [],abonentNumbersList = []) {
     //const client = await pool.connect();
     
     try {
@@ -466,9 +460,8 @@ ORDER BY target_name;
     } finally {
         //client.release();
     }
-}
-
-async getAbonentEventsTable(tableName, timeField, startTime, endTime, targetValues, abonentNumbers) {
+  }
+  async getAbonentEventsTable(tableName, timeField, startTime, endTime, targetValues, abonentNumbers) {
     try {
         const targetPlaceholders = targetValues.map((_, i) => `$${i + 3}`).join(', ');
         const abonentsListPlaceholders = abonentNumbers.map((_, i) => `$${i + 3 + targetValues.length}`).join(', ');
@@ -519,76 +512,7 @@ ORDER BY numAbonent;
         console.error('Error executing query:', error);
         throw error;
     }
-}
-
-
-async getAbonentEventsWithBgiSession(tableName, timeField, startTime, endTime, targetValues, abonentNumbers) {
-    try {
-        const targetPlaceholders = targetValues.map((_, i) => `$${i + 3}`).join(', ');
-        const abonentsListPlaceholders = abonentNumbers.map((_, i) => `$${i + 3 + targetValues.length}`).join(', ');
-        
-        const query = `
-WITH filtered_events AS (
-    SELECT *,
-           COALESCE(
-               data_ev ->> 'numAbonent',
-               (SELECT elem ->> 'numAbonent' 
-                FROM jsonb_array_elements(
-                    COALESCE(data_ev #> '{bgiSession,bgiList}', '[]'::jsonb)
-                ) as elem 
-                WHERE elem ? 'numAbonent'
-                LIMIT 1),
-               'unknown'
-           ) as extracted_numAbonent
-    FROM ${tableName} t
-    WHERE 
-        (${timeField} BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2))
-        AND ((data_ev ->> 'evType')::text IN (${targetPlaceholders}))
-        AND (
-            (COALESCE(
-                data_ev ->> 'numAbonent',
-                (SELECT elem ->> 'numAbonent' 
-                 FROM jsonb_array_elements(
-                     COALESCE(data_ev #> '{bgiSession,bgiList}', '[]'::jsonb)
-                 ) as elem 
-                 WHERE elem ? 'numAbonent'
-                 LIMIT 1)
-            ) IN (${abonentsListPlaceholders}))
-            OR
-            (data_ev ->> 'numAbonent' IS NULL 
-             AND data_ev #> '{bgiSession,bgiList}' IS NULL)
-        )
-)
-SELECT 
-    extracted_numAbonent as numAbonent,
-    jsonb_agg(
-        jsonb_build_object(
-            'id', id,
-            'time', ${timeField},
-            'name_ev', name_ev,
-            'evType', data_ev ->> 'evType',
-            'data_ev', data_ev
-        )
-        ORDER BY ${timeField} ASC
-    ) as events_array
-FROM filtered_events
-GROUP BY extracted_numAbonent
-ORDER BY extracted_numAbonent;
-        `;
-
-        const params = [startTime, endTime, ...targetValues, ...abonentNumbers];
-        
-        const result = await pool.query(query, params);
-        logger.info('eventsJournal: getAbonentEventsTableWithBgiSession:\n%s ',  po(result.rows));
-        return result.rows;
-        
-    } catch (error) {
-        console.error('Error executing query:', error);
-        throw error;
-    }
-}
-
-
+  }
   /*  
  {
     "idEv":<integer>,         // Если поле задано то в ответ на запрос отправляется
@@ -616,7 +540,7 @@ ORDER BY extracted_numAbonent;
     "endDate":<unix time>,    // Конечная дата из диапазона запроса , по времени
     "withPreviousEvent":<boolean>  // Если поле задано и равно true то 
       // в ответ на запрос отдаются события предшествующие начальной дате диапазона. 
-    "eventTypesList":[<string>],         // Типы событий которые нужно отдать
+    "eventTypesListDepent":[<string>],         // Типы событий которые нужно отдать
                                                "eventAlarmSession",
                                                "eventAlarmSessionBgi",
                                                "sipUnregistered",
@@ -624,7 +548,7 @@ ORDER BY extracted_numAbonent;
                                                "voiceGateway",
                                                "sipChannelChanged",
                                                "sipRegistrationStatus"
-
+  
 
     "abonentNumbersList":[<integer>],    // Номера абонентов события которых нужно отдать     
   }  

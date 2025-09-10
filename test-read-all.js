@@ -36,7 +36,7 @@ import {logger,po} from './logger.js';
                     //endDateHuman: "2025-09-08T17:49:02.000",
                     startDateHuman: "2025-09-09T18:00:00.000",
                     endDateHuman: "2025-09-10T18:59:02.000",
-                    eventTypesList:["eventAlarmSession","eventAlarmSessionBgi", "smsGateway", "voiceGateway", "streaming", "sipChannelChanged", "sipRegistrationStatus" ],
+                    eventTypesList:["eventAlarmSession","eventAlarmSessionBgi", "smsGateway", "voiceGateway", "sipChannelChanged", "sipRegistrationStatus"],
                     abonentNumbersList:[9]             
                   }
       let request_j = JSON.stringify(request)
