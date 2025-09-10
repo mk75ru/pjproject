@@ -1,0 +1,49 @@
+[
+  {
+    "numabonent": "9",
+    "events_array": [
+      {
+        "id": 928,
+        "time": "2025-09-09T18:04:03",
+        "evType": "sipRegistrationStatus",                
+        "name_ev": "sipRegistered",
+        "data_ev": {}                                                                                                                                      
+      },
+      {
+        "id": 930,
+        "time": "2025-09-09T18:04:50",
+        "evType": "eventAlarmSessionBgi",
+        "name_ev": "alarmStart",
+        "data_ev": {
+          "state": "Down"
+        }
+
+      },      
+      {                                                                                                                                                                 
+        "id": 931,                                                                                                                                                      
+        "time": "2025-09-09T18:04:54",                                                                                                                                  
+        "evType": "sipChannelChanged",                                                                                                                                  
+        "name_ev": "sipChannelUp",
+        "data_ev": {}                                                                                                                                       
+      },
+      {
+        "id": 931,
+        "time": "2025-09-09T18:05:54",
+        "evType": "eventAlarmSessionBgi",
+        "name_ev": "alarmEnd",
+        "data_ev": {
+          "state": "Up"/"Ring"/"Down"
+        }
+
+
+      },      
+      {
+        "id": 944,
+        "time": "2025-09-09T18:17:33",
+        "evType": "sipRegistrationStatus",
+        "name_ev": "sipUnregistered",
+        "data_ev": {}                                                                                                                                    
+      }                                                                                                                                                                 
+    ]                                                                                                                                                                   
+  }                                                                                                                                                                     
+]

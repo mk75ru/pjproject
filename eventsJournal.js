@@ -14,6 +14,7 @@ import {logger,po} from './logger.js';
 
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { log } from 'console';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename)
 
@@ -216,7 +217,379 @@ class eventsJournal {
       logger.error(err.stack,"eventsJournal: update");
     }
   }
-/*
+
+
+  // Версия с возможностью указать поле name_ev (если оно может называться по-разному)
+async  getDataWithCustomNameEv_(tableName, timeField, nameEvField, startTime, endTime, targetValues = []) {
+    //const client = await pool.connect();                      
+    try {
+        const targetPlaceholders = targetValues.map((_, index) => `$${index + 3}`).join(', ');
+        logger.info("\ntargetPlaceholders: %s\n",targetPlaceholders);
+        const query = `
+ WITH target_in_range AS (
+     SELECT EXISTS (
+         SELECT 1 FROM ${tableName}
+         WHERE ${timeField} BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2)
+                            AND ${nameEvField} IN (${targetPlaceholders})
+     ) as has_target
+ )
+     -- Временный вывод для отладки
+, debug_output AS (
+    SELECT has_target, 
+           'Debug: has_target = ' || has_target::text as debug_info
+    FROM target_in_range
+)
+SELECT *, (SELECT debug_info FROM debug_output) as debug
+FROM ${tableName} t
+WHERE 
+    -- Всегда показываем события диапазона |$1| |$2| |${timeField}|    
+    (${timeField} BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2))
+     OR
+     (
+         -- Если в диапазоне нет целевых событий, добавляем последние целевые события перед диапазоном
+         (SELECT NOT has_target FROM target_in_range)
+         AND ${timeField} < TO_TIMESTAMP($1)
+         AND ${nameEvField} IN (${targetPlaceholders})
+         AND ${timeField} = (
+             SELECT MAX(${timeField})
+             FROM ${tableName}
+             WHERE ${timeField} < TO_TIMESTAMP($1)
+             AND ${nameEvField} = t.${nameEvField}
+             AND ${nameEvField} IN (${targetPlaceholders})
+         )
+     )
+   ORDER BY id DESC, ${timeField} DESC
+        `;
+const query_ = `
+SELECT *
+FROM ${tableName} t
+WHERE 
+    (${timeField} BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2))
+ORDER BY id DESC, ${timeField} DESC
+        `;        
+        //-- ORDER BY ${timeField}
+        logger.info("\nquery: %s",query);
+        //const startTimeStr = startTime.toISOString();
+        //const endTimeStr = endTime.toISOString();        
+        //const startTime_ = new Date(startTime);
+        //const endTime_ = new Date(endTime);
+        const params = [startTime, endTime, ...targetValues];
+        const params_ = [startTime, endTime];
+        logger.info("\nparams: %s",params);
+        const result = await pool.query(query, params);
+        //let result = await pool.query('SELECT * FROM events_schema.events_table WHERE (human_date_ev BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2)) ORDER BY id DESC, human_date_ev DESC',
+        //                              [startTime,endTime]);
+        logger.info('eventsJournal: getDataWithCustomNameEv: %s ',  po(result.rows));
+        return result.rows;
+        
+    } catch (error) {
+        console.error('Error executing query:', error);
+        throw error;
+    } finally {
+        //client.release();
+    }
+}
+
+
+async getDataWithCustomNameEv(tableName, timeField, nameEvField, startTime, endTime, targetValues = [],abonentNumbersList = []) {
+    //const client = await pool.connect();
+    
+    try {
+        //let isPresentTargetValuesTable = await  this.getTargetPresenceTable(tableName, timeField, nameEvField, startTime, endTime, targetValues);
+        //let targetValues_IsNotPresentInTimeRange = [];        
+        //for(let item of isPresentTargetValuesTable) {
+        //    if (item.is_present_in_range === false) {
+        //      targetValues_IsNotPresentInTimeRange.push(item.target_name);
+        //    }
+        // }
+      
+        const targetPlaceholders = targetValues.map((_, index) => `$${index + 3}`).join(', ');
+        const abonentsListPlaceholders = abonentNumbersList.map((_, index ) => `$${ index + targetValues.length + 3}`).join(', ');
+        logger.info("\ntargetPlaceholders: %s\n",targetPlaceholders);
+        logger.info("\nabonentsList: %s\n",abonentsListPlaceholders);
+        //const targetValuesPlaceholders_IsNotPresentInTimeRange = targetValues_IsNotPresentInTimeRange.map((_, index) => `$${index + 3}`).join(', ');
+                
+        // Сначала выполним отдельный запрос для проверки
+        const checkQuery = `
+            SELECT EXISTS (
+                SELECT 1 FROM ${tableName}
+                WHERE ${timeField} BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2)
+                AND ${nameEvField} IN (${targetPlaceholders})
+            ) as has_target
+        `;
+        
+        const checkParams = [startTime, endTime, ...targetValues];
+        //const checkResult = await pool.query(checkQuery, checkParams);
+        //const hasTarget = checkResult.rows[0].has_target;
+
+        //let isExistTargetsOutTimeRange = false;
+        //if (targetValues_IsNotPresentInTimeRange.length > 0) {
+        //  isExistTargetsOutTimeRange = true;
+        //}
+
+        //logger.info('DEBUG: checkResult = %s', po(checkResult.rows));
+        //logger.info('DEBUG: has_target = %s', hasTarget);
+        //logger.info('DEBUG: NOT has_target = %s', !hasTarget);
+        
+        /*
+                           --, 
+
+        */
+        // Теперь основной запрос        
+        /* 
+        const query = `
+            SELECT *,
+                   ${hasTarget} as debug_has_target,
+                   ${!hasTarget} as debug_not_has_target
+
+            FROM ${tableName} t
+            WHERE 
+                (${timeField} BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2))
+                            AND (data_ev ->> 'evType')::text IN ${targetPlaceholders}
+                            AND (data_ev ->> 'numAbonent')::numeric  IN ${abonentsList}
+                 OR
+                 (
+                    ${isExistTargetsOutTimeRange}  -- подставляем результат напрямую
+                    AND ${timeField} < TO_TIMESTAMP($1)
+                    AND ${nameEvField} IN (${targetValuesPlaceholders_IsNotPresentInTimeRange})
+                     AND ${timeField} = (
+                        SELECT MAX(${timeField})
+                        FROM ${tableName}
+                        WHERE ${timeField} < TO_TIMESTAMP($1)
+                        AND ${nameEvField} = t.${nameEvField}
+                        AND ${nameEvField} IN (${targetValuesPlaceholders_IsNotPresentInTimeRange})
+                     )
+                 )
+            ORDER BY id DESC, ${timeField} DESC
+        `;
+                -- AND ((data_ev ->> 'evType')::text IN ${targetPlaceholders})
+                -- AND ((data_ev ->> 'numAbonent')::numeric  IN ${abonentsListPlaceholders})                                 
+        */
+
+                /*
+
+                                 -- OR  
+                 -- (                     
+                 --   AND ${timeField} < TO_TIMESTAMP($1)
+                 --   AND (data_ev ->> 'evType')::text IN (${targetValuesPlaceholders_IsNotPresentInTimeRange})
+                 --   AND (data_ev ->> 'numAbonent')::text  IN (${abonentsListPlaceholders})
+                 --   AND ${timeField} = (
+                 --       SELECT MAX(${timeField})
+                 --       FROM ${tableName}
+                 --       WHERE ${timeField} < TO_TIMESTAMP($1)
+                 --       AND (data_ev ->> 'evType')::text = t.(data_ev ->> 'evType')::text
+                 --       AND (data_ev ->> 'evType')::text IN (${targetValuesPlaceholders_IsNotPresentInTimeRange})
+                 --       AND (data_ev ->> 'numAbonent')::text  IN (${abonentsListPlaceholders})
+                 --     )
+                 -- )
+                  Использование оператора ? (содержит ли массив элемент)
+                  sql
+
+                  SELECT *
+                  FROM your_table
+                  WHERE data_ev -> 'numAbonents' ? '12345';
+
+                */
+        const query = `
+            SELECT *
+            FROM ${tableName} t
+            WHERE 
+                (${timeField} BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2))
+                AND ((data_ev ->> 'evType')::text IN (${targetPlaceholders}))
+                AND (
+                      ((data_ev ->> 'numAbonent')::text  IN (${abonentsListPlaceholders}))                 
+                      OR
+                      (NOT data_ev ? 'numAbonent')
+                    )
+                AND (
+                      data_ev #> '{bgiSession, bgiList}' IS NULL
+                      OR
+                      data_ev @> '{"bgiSession": {"bgiList": [{"numAbonent": 1}]}}'
+                    )                      
+            ORDER BY id DESC, ${timeField} DESC
+        `;
+
+        // const params = [startTime, endTime, ...targetValues_IsNotPresentInTimeRange];
+        const params = [startTime, endTime, ...targetValues, ...abonentNumbersList];
+        const result = await pool.query(query, params);
+        logger.info('eventsJournal: getDataWithCustomNameEv: %s ',  po(result.rows));
+        return result.rows;
+        
+    } catch (error) {
+        console.error('Error executing query:', error);
+        throw error;
+    } finally {
+        //client.release();
+    }
+}
+
+async getTargetPresenceTableHuman(tableName, timeField, nameEvField, startDateHuman, endDateHuman, targetValues = [],abonentNumbersList = []) {
+  return await this.getTargetPresenceTable(tableName, timeField, nameEvField, 
+    Math.floor(new Date(startDateHuman).getTime() / 1000), 
+    Math.floor(new Date(endDateHuman).getTime() / 1000), 
+    targetValues);
+}
+
+async getTargetPresenceTable(tableName, timeField, nameEvField, startTime, endTime, targetValues = [],abonentNumbersList = []) {
+    //const client = await pool.connect();
+    
+    try {
+        // Создаем массив значений для VALUES
+        const valuesList = targetValues.map((v, i) => `($${i + 3})`).join(', ');
+        const abonentsList = abonentNumbersList.map((v, i) => `($${i + 3})`).join(', ');
+        
+        const query = `
+WITH target_presence AS (
+    SELECT 
+        target_values.target_name,
+        EXISTS (
+            SELECT 1 FROM ${tableName}
+            WHERE ${timeField} BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2)
+            AND (data_ev ->> 'evType')::text = target_values.target_name            
+            AND (data_ev ->> 'numAbonent')::numeric  IN ${abonentsList}
+        ) as is_present_in_range
+    FROM (VALUES ${valuesList}) as target_values(target_name)
+)
+SELECT * FROM target_presence
+ORDER BY target_name;
+        `;
+//--AND  data_ev.numAbonent IN (${abonentNumbersList}) 
+        const params = [startTime, endTime, ...targetValues];
+        
+        const result = await pool.query(query, params);
+        logger.info('eventsJournal: getTargetPresenceTable: %s ',  po(result.rows));
+        return result.rows;
+        
+    } catch (error) {
+        console.error('Error executing query:', error);
+        throw error;
+    } finally {
+        //client.release();
+    }
+}
+
+async getAbonentEventsTable(tableName, timeField, startTime, endTime, targetValues, abonentNumbers) {
+    try {
+        const targetPlaceholders = targetValues.map((_, i) => `$${i + 3}`).join(', ');
+        const abonentsListPlaceholders = abonentNumbers.map((_, i) => `$${i + 3 + targetValues.length}`).join(', ');
+        
+        const query = `
+WITH filtered_events AS (
+    SELECT *
+    FROM ${tableName} t
+    WHERE 
+        (${timeField} BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2))
+        AND ((data_ev ->> 'evType')::text IN (${targetPlaceholders}))
+        AND (
+            ((data_ev ->> 'numAbonent')::text IN (${abonentsListPlaceholders}))                 
+            OR
+            (NOT data_ev ? 'numAbonent')
+        )
+        AND (
+            data_ev #> '{bgiSession, bgiList}' IS NULL
+            OR
+            data_ev @> '{"bgiSession": {"bgiList": [{"numAbonent": 1}]}}'
+        )
+    ORDER BY ${timeField} ASC  -- Ранние события сначала
+)
+SELECT 
+    COALESCE(data_ev ->> 'numAbonent', 'notAbonent') as numAbonent,
+    jsonb_agg(
+        jsonb_build_object(
+            'id', id,
+            'time', ${timeField},
+            'name_ev', name_ev,
+            'evType', data_ev ->> 'evType',
+            'data_ev', data_ev            
+        )
+        ORDER BY ${timeField} ASC  -- Сохраняем порядок    
+    ) as events_array
+FROM filtered_events
+GROUP BY COALESCE(data_ev ->> 'numAbonent', 'notAbonent')
+ORDER BY numAbonent;
+        `;
+
+        const params = [startTime, endTime, ...targetValues, ...abonentNumbers];
+        
+        const result = await pool.query(query, params);
+        logger.info('eventsJournal: getAbonentEventsTable:\n%s ',  po(result.rows));
+        return result.rows;
+        
+    } catch (error) {
+        console.error('Error executing query:', error);
+        throw error;
+    }
+}
+
+
+async getAbonentEventsWithBgiSession(tableName, timeField, startTime, endTime, targetValues, abonentNumbers) {
+    try {
+        const targetPlaceholders = targetValues.map((_, i) => `$${i + 3}`).join(', ');
+        const abonentsListPlaceholders = abonentNumbers.map((_, i) => `$${i + 3 + targetValues.length}`).join(', ');
+        
+        const query = `
+WITH filtered_events AS (
+    SELECT *,
+           COALESCE(
+               data_ev ->> 'numAbonent',
+               (SELECT elem ->> 'numAbonent' 
+                FROM jsonb_array_elements(
+                    COALESCE(data_ev #> '{bgiSession,bgiList}', '[]'::jsonb)
+                ) as elem 
+                WHERE elem ? 'numAbonent'
+                LIMIT 1),
+               'unknown'
+           ) as extracted_numAbonent
+    FROM ${tableName} t
+    WHERE 
+        (${timeField} BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2))
+        AND ((data_ev ->> 'evType')::text IN (${targetPlaceholders}))
+        AND (
+            (COALESCE(
+                data_ev ->> 'numAbonent',
+                (SELECT elem ->> 'numAbonent' 
+                 FROM jsonb_array_elements(
+                     COALESCE(data_ev #> '{bgiSession,bgiList}', '[]'::jsonb)
+                 ) as elem 
+                 WHERE elem ? 'numAbonent'
+                 LIMIT 1)
+            ) IN (${abonentsListPlaceholders}))
+            OR
+            (data_ev ->> 'numAbonent' IS NULL 
+             AND data_ev #> '{bgiSession,bgiList}' IS NULL)
+        )
+)
+SELECT 
+    extracted_numAbonent as numAbonent,
+    jsonb_agg(
+        jsonb_build_object(
+            'id', id,
+            'time', ${timeField},
+            'name_ev', name_ev,
+            'evType', data_ev ->> 'evType',
+            'data_ev', data_ev
+        )
+        ORDER BY ${timeField} ASC
+    ) as events_array
+FROM filtered_events
+GROUP BY extracted_numAbonent
+ORDER BY extracted_numAbonent;
+        `;
+
+        const params = [startTime, endTime, ...targetValues, ...abonentNumbers];
+        
+        const result = await pool.query(query, params);
+        logger.info('eventsJournal: getAbonentEventsTableWithBgiSession:\n%s ',  po(result.rows));
+        return result.rows;
+        
+    } catch (error) {
+        console.error('Error executing query:', error);
+        throw error;
+    }
+}
+
+
+  /*  
  {
     "idEv":<integer>,         // Если поле задано то в ответ на запрос отправляется
                               // запись с id заданным в idEv , остальные опции запроса игнорируются
@@ -227,24 +600,90 @@ class eventsJournal {
       "alarmEnd",             // Завершение оповещения
       "connected",            // Соединение установлено (транк, астериск, модем, устройтство)
       "disconnected",         // Соединение разорваное (транк, астериск, модем, устройтство)
-      "playSound",            // Запуск воспроизведения звукозаписи
-      "stopSound",            // Остановка воспроизведения звукозаписи
+      "streamStart",            // Запуск воспроизведения звукозаписи
+      "streamStop",            // Остановка воспроизведения звукозаписи
     ],
-    "idSess":<integer>,       // Номер сеанса оповещения
-    "allFields":<boolean>     // Если поле задано и равно true то в ответ на запрос отдаются все поля
-                                 записи базы данных
+    "idSess":<integer>,        // Номер сеанса оповещения
+    "allFields":<boolean>,     // Если поле задано и равно true то в ответ на запрос отдаются все поля
+                                 записи базы данных    
   }
+  или                                 
+  {
+    "requestType" : "monitoring",
+    "startDate":<unix time>,  // Начальная дата из диапазона запроса , по времени
+    "endDate":<unix time>,    // Конечная дата из диапазона запроса , по времени
+    "withPreviousEvent":<boolean>  // Если поле задано и равно true то 
+      // в ответ на запрос отдаются события предшествующие начальной дате диапазона. 
+    "eventTypesList":[<string>],         // Типы событий которые нужно отдать
+                                               "eventAlarmSession",
+                                               "sipUnregistered",
+                                               "smsGateway",   
+                                               "voiceGateway",
+                                               "sipChannelChanged",
+                                               "sipRegistrationStatus"
+
+    "abonentNumbersList":[<integer>],    // Номера абонентов события которых нужно отдать     
+  }  
   Поля startDate и  endDate должны быть всегда, кроме запроса по idSess
   Поле evType может отсутствовать или быть пустым массивом
   Если поле idSess присутствует то поля  startDate  endDate не учавствуют в запросе
+
+  Время startDateHuman  и endDateHuman должны быть в формате YYYY-MM-DDTHH:mm:ss.sssZ
+    Формат — YYYY-MM-DDTHH:mm:ss.sssZ. В нём указаны часы, минуты, секунды и миллисекунды. g-blog.onrender.compurpleschool.ru
+    Особенности:
+
+    T — разделитель между датой и временем.
+    HH:mm:ss.sss — часы, минуты, секунды и миллисекунды.
+    Z — настройки временной зоны. Если Z присутствует, дата будет в формате UTC, если Z отсутствует — в локальном часовом поясе (это работает только если указано время).
  */
   async get(request) {
     let req = request;
-    try {
+    try {      
       let result;
+      if(req.startDateHuman !== undefined) {        
+        req.startDate = Math.floor(new Date(req.startDateHuman).getTime() / 1000);
+      }     
+      if(req.endDateHuman !== undefined) {        
+        req.endDate = Math.floor(new Date(req.endDateHuman).getTime() / 1000);
+      }     
+
+      if(req.requestType !== undefined) {
+        switch(req.requestType) {
+          case "monitoring": {
+             logger.info("get monitoring");
+             result = await  this.getAbonentEventsTable("events_schema.events_table", "human_date_ev", 
+                 req.startDate,
+                 req.endDate,
+                 req.eventTypesList,
+                 req.abonentNumbersList               
+             );
+             logger.info('eventsJournal: getAbonentEventsTable:\n%s ',  po(result.rows));
+            /*             
+             result = await  this.getDataWithCustomNameEv("events_schema.events_table",
+                 "human_date_ev",
+                 "data_ev.evType",                 
+                 req.startDate,
+                 req.endDate,
+                 req.eventTypesList,
+                 req.abonentNumbersList               
+              );
+              */              
+            break;
+          }
+          default: {
+            throw new Error("Unknown requestType: " + req.requestType);
+          } 
+        }
+        if(result === undefined) {
+          return result.rows
+        } else {
+          return [];
+        }        
+      }
       let fields_part = "date_ev ,name_ev, description_ev,id_session_ev ,version_data_ev";
       let fields_full = "*";
-      let fields = fields_part;
+      let fields = fields_part;      
+      logger.info('eventsJournal: get: %s ',  po(req));
       if(req.allFields !== undefined) {
         if(req.allFields === true) {
           logger.trace("get full");
@@ -257,14 +696,12 @@ class eventsJournal {
 
       }
       else if(req.idSess === undefined) {
-
         if((req.evType !== undefined) && (req.evType.length !== 0) )
         {
-          if (fields === "*") {
+          if (fields === "*") {         
             result = await pool.query('SELECT * FROM events_schema.events_table WHERE (human_date_ev BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2)) AND (name_ev = ANY($3::text[])) ORDER BY id DESC, human_date_ev DESC  ',
-                                    [req.startDate,req.endDate,req.evType]);
-          }
-          else {
+                                    [req.startDate,req.endDate,req.evType]);                                                   
+          } else {
             result = await pool.query('SELECT id, date_ev ,name_ev, description_ev,id_session_ev ,version_data_ev FROM events_schema.events_table WHERE (human_date_ev BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2)) AND (name_ev = ANY($3::text[])) ORDER BY id DESC, human_date_ev DESC  ',
                                     [req.startDate,req.endDate,req.evType]);
           }
@@ -302,7 +739,7 @@ class eventsJournal {
           }
         }
       }
-      logger.info('eventsJournal: get length: %s ', result.rows.length );
+      //logger.info('eventsJournal: get length: %s ', result.rows.length );
       logger.trace('eventsJournal: get: %s ',  po(result.rows));
       return  result.rows;
     } catch (err) {
