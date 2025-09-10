@@ -478,11 +478,6 @@ WITH filtered_events AS (
             OR
             (NOT data_ev ? 'numAbonent')
         )
-        AND (
-            data_ev #> '{bgiSession, bgiList}' IS NULL
-            OR
-            data_ev @> '{"bgiSession": {"bgiList": [{"numAbonent": 1}]}}'
-        )
     ORDER BY ${timeField} ASC  -- Ранние события сначала
 )
 SELECT 
