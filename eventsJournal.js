@@ -513,7 +513,7 @@ ORDER BY numAbonent;
         
         const result = await pool.query(query, params);
         logger.info('eventsJournal: getAbonentEventsTable:\n%s ',  po(result.rows));
-        return result.rows;
+        return result;
         
     } catch (error) {
         console.error('Error executing query:', error);
@@ -598,6 +598,8 @@ ORDER BY extracted_numAbonent;
     "evType":[
       "alarmStart",           // Запуск оповещения
       "alarmEnd",             // Завершение оповещения
+      "alarmStartBgi",        // Запуск оповещения БГИ
+      "alarmEndBgi",          // Завершение оповещения БГИ
       "connected",            // Соединение установлено (транк, астериск, модем, устройтство)
       "disconnected",         // Соединение разорваное (транк, астериск, модем, устройтство)
       "streamStart",            // Запуск воспроизведения звукозаписи
@@ -616,11 +618,13 @@ ORDER BY extracted_numAbonent;
       // в ответ на запрос отдаются события предшествующие начальной дате диапазона. 
     "eventTypesList":[<string>],         // Типы событий которые нужно отдать
                                                "eventAlarmSession",
+                                               "eventAlarmSessionBgi",
                                                "sipUnregistered",
                                                "smsGateway",   
                                                "voiceGateway",
                                                "sipChannelChanged",
                                                "sipRegistrationStatus"
+
 
     "abonentNumbersList":[<integer>],    // Номера абонентов события которых нужно отдать     
   }  
@@ -656,8 +660,7 @@ ORDER BY extracted_numAbonent;
                  req.endDate,
                  req.eventTypesList,
                  req.abonentNumbersList               
-             );
-             logger.info('eventsJournal: getAbonentEventsTable:\n%s ',  po(result.rows));
+             );             
             /*             
              result = await  this.getDataWithCustomNameEv("events_schema.events_table",
                  "human_date_ev",
@@ -674,7 +677,7 @@ ORDER BY extracted_numAbonent;
             throw new Error("Unknown requestType: " + req.requestType);
           } 
         }
-        if(result === undefined) {
+        if(result !== undefined) {          
           return result.rows
         } else {
           return [];
