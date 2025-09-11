@@ -940,7 +940,8 @@ ORDER BY numAbonent;
             }
             isExistAbonents[row.numabonent] = true;
             // Находим события, которых нет в списке
-            let missingTargetValuesForOneAbonent = targetValuesDependentForAbonent.concat(targetValuesIndependentForAbonent).filter(v => !row.events_array.map(e => e.evType).includes(v));
+            //let missingTargetValuesForOneAbonent = targetValuesDependentForAbonent.concat(targetValuesIndependentForAbonent).filter(v => !row.events_array.map(e => e.evType).includes(v));
+            let missingTargetValuesForOneAbonent = targetValuesDependentForAbonent.concat(targetValuesIndependentForAbonent);
             missingTargetValues[row.numabonent] = missingTargetValuesForOneAbonent;            
             
         }
