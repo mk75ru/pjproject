@@ -461,10 +461,27 @@ ORDER BY target_name;
         //client.release();
     }
   }
-  async getAbonentEventsTable(tableName, timeField, startTime, endTime, targetValues, abonentNumbers) {
+  async getAbonentEventsTable_(tableName, timeField, startTime, endTime, targetValues, abonentNumbers) {
     try {
-        const targetPlaceholders = targetValues.map((_, i) => `$${i + 3}`).join(', ');
-        const abonentsListPlaceholders = abonentNumbers.map((_, i) => `$${i + 3 + targetValues.length}`).join(', ');
+
+        const targetValuesDependent = targetValues?.filter(v => 
+                 ['sipChannelChanged', 'sipRegistrationStatus','eventAlarmSessionBgi'].includes(v)
+             ) || [];
+             
+        const targetValuesIndependent = targetValues?.filter(v => 
+                 ['eventAlarmSession', 'smsGateway', 'voiceGateway'].includes(v)                   
+             ) || [];
+        
+        logger.info("targetValues: %s", targetValues);
+        logger.info("targetValuesDependent: %s", targetValuesDependent);     
+        logger.info("targetValuesIndependent: %s", targetValuesIndependent);
+        
+        const targetPlaceholdersDependent   = targetValuesDependent.map((_, i) => 
+          `$${i + 3}`).join(', ');
+        const targetPlaceholdersIndependent = targetValuesIndependent.map((_, i) => 
+          `$${i + 3 + targetValuesDependent.length}`).join(', ');
+        const abonentsListPlaceholders = abonentNumbers.map((_, i) => 
+          `$${i + 3 + targetValuesDependent.length + targetValuesIndependent.length}`).join(', ');
         
         const query = `
 WITH filtered_events AS (
@@ -472,13 +489,63 @@ WITH filtered_events AS (
     FROM ${tableName} t
     WHERE 
         (${timeField} BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2))
-        AND ((data_ev ->> 'evType')::text IN (${targetPlaceholders}))
+        AND ((data_ev ->> 'evType')::text IN (${targetPlaceholdersDependent} , ${targetPlaceholdersIndependent}))
         AND (
             ((data_ev ->> 'numAbonent')::text IN (${abonentsListPlaceholders}))                 
             OR
             (NOT data_ev ? 'numAbonent')
         )
     ORDER BY ${timeField} ASC  -- Ранние события сначала
+),
+-- Запрос для поиска отсутствующих событий
+missing_events_report AS (
+    WITH target_values AS (
+        SELECT unnest($3::text[]) as target_name
+    ),
+    abonent_numbers AS (
+        SELECT unnest($4::text[]) as num_abonent
+    ),
+    all_combinations AS (
+        SELECT 
+            an.num_abonent,
+            tv.target_name
+        FROM abonent_numbers an
+        CROSS JOIN target_values tv
+    ),
+    present_events AS (
+        SELECT 
+            data_ev ->> 'numAbonent' as num_abonent,
+            data_ev ->> 'evType' as ev_type,
+            COUNT(*) as count
+        FROM ${tableName}
+        WHERE 
+            ${timeField} BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2)
+            AND (data_ev ->> 'evType')::text IN (${targetPlaceholdersDependent}, ${targetPlaceholdersIndependent})
+            AND (data_ev ->> 'numAbonent')::text IN (${abonentsListPlaceholders})
+        GROUP BY data_ev ->> 'numAbonent', data_ev ->> 'evType'
+    ),
+    missing_events AS (
+        SELECT 
+            ac.num_abonent,
+            ac.target_name as missing_event_type
+        FROM all_combinations ac
+        LEFT JOIN present_events pe 
+            ON ac.num_abonent = pe.num_abonent 
+            AND ac.target_name = pe.ev_type
+        WHERE pe.count IS NULL
+    ),
+    grouped_missing AS (
+        SELECT 
+            num_abonent,
+            jsonb_agg(missing_event_type) as missing_event_types
+        FROM missing_events
+        GROUP BY num_abonent
+    )
+    SELECT 
+        an.num_abonent,
+        COALESCE(gm.missing_event_types, '[]'::jsonb) as missing_events
+    FROM abonent_numbers an
+    LEFT JOIN grouped_missing gm ON an.num_abonent = gm.num_abonent
 )
 SELECT 
     COALESCE(data_ev ->> 'numAbonent', 'notAbonent') as numAbonent,
@@ -497,7 +564,7 @@ GROUP BY COALESCE(data_ev ->> 'numAbonent', 'notAbonent')
 ORDER BY numAbonent;
         `;
 
-        const params = [startTime, endTime, ...targetValues, ...abonentNumbers];
+        const params = [startTime, endTime, ...targetValuesDependent, ...targetValuesIndependent, ...abonentNumbers];
         
         const result = await pool.query(query, params);
         logger.info('eventsJournal: getAbonentEventsTable:\n%s ',  po(result.rows));
@@ -508,6 +575,7 @@ ORDER BY numAbonent;
         throw error;
     }
   }
+
   /*  
  {
     "idEv":<integer>,         // Если поле задано то в ответ на запрос отправляется
@@ -559,7 +627,7 @@ ORDER BY numAbonent;
     HH:mm:ss.sss — часы, минуты, секунды и миллисекунды.
     Z — настройки временной зоны. Если Z присутствует, дата будет в формате UTC, если Z отсутствует — в локальном часовом поясе (это работает только если указано время).
  */
-  async get(request) {
+  async get_(request) {
     let req = request;
     try {      
       let result;
@@ -688,6 +756,286 @@ ORDER BY numAbonent;
       logger.error(err.stack,"eventsJournal: delete");
     }
   }
+//------------------------------------------------------------------------------------
+
+
+async getPreviousEvents(tableName, timeField, startTime, missingTargetValues) {
+    try {
+        logger.info('Getting previous events for missingTargetValues: %s', 
+                   po(missingTargetValues));
+        
+        if (missingTargetValues.length === 0 ) {
+            logger.info('No missing target values provided, returning empty array');
+            return [];
+        }
+        //const missingTargetValuesPlaceholders = missingTargetValues.map((_, i) => `$${i + 3}`).join(', ');
+        const missingTargetValuesJstring = JSON.stringify(missingTargetValues);
+
+const query = `
+WITH ranked_events AS (
+    SELECT 
+        *,
+        data_ev ->> 'numAbonent' as num_abonent,
+        data_ev ->> 'evType' as ev_type,
+        ROW_NUMBER() OVER (
+            PARTITION BY 
+                COALESCE(data_ev->>'numAbonent', 'notAbonent'), 
+                data_ev->>'evType'
+            ORDER BY t.${timeField} DESC
+        ) as rn
+    FROM ${tableName} t,
+    jsonb_each_text($2::jsonb) AS obj(key, value)
+    WHERE 
+        t.${timeField} < TO_TIMESTAMP($1)
+        AND (                  
+          (
+            t.data_ev ? 'numAbonent' AND
+            obj.key = t.data_ev->>'numAbonent'
+          )
+          OR
+          (
+            NOT (t.data_ev ? 'numAbonent') AND
+            obj.key = 'notAbonent'
+          )
+        )
+        AND (obj.value::jsonb @> to_jsonb(t.data_ev ->> 'evType'))
+)
+SELECT 
+    COALESCE(num_abonent, 'notAbonent') as numAbonent,
+    jsonb_agg(
+        jsonb_build_object(
+            'id', id,
+            'time', ${timeField},
+            'name_ev', name_ev,
+            'evType', ev_type,
+            'data_ev', data_ev,
+            'is_previous', true
+        )
+        ORDER BY ${timeField} ASC
+    ) as events_array
+FROM ranked_events
+WHERE rn = 1
+GROUP BY COALESCE(num_abonent, 'notAbonent')
+ORDER BY numAbonent;
+`;
+
+
+        const params = [startTime,missingTargetValuesJstring];
+        
+        logger.info('Previous events query: %s', query);
+        logger.info('Previous events params: %s',po( params));
+        
+        const result = await pool.query(query, params);
+        logger.info('Found %s previous events', result.rows.length);
+        logger.info('!!!!!!!!!!!!!! previous events %s', po(result.rows));
+        return result;
+        /*
+        return result.rows.map(row => ({
+            num_abonent: row.num_abonent,
+            ev_type: row.ev_type,
+            event: row.previous_event
+        }));
+        */
+        
+    } catch (error) {
+        console.error('Error getting previous events:', error);
+        logger.error('Error in getPreviousEvents: %s', error.message);
+        return [];
+    }
+}
+
+
+async getAbonentEventsTable(tableName, timeField, startTime, endTime, targetValues, abonentNumbers) {
+    try {
+        const targetValuesDependent = targetValues?.filter(v => 
+                 ['sipChannelChanged', 'sipRegistrationStatus','eventAlarmSessionBgi'].includes(v)
+             ) || [];
+             
+        const targetValuesIndependent = targetValues?.filter(v => 
+                 ['eventAlarmSession', 'smsGateway', 'voiceGateway'].includes(v)                   
+             ) || [];
+        
+        logger.info("targetValues: %s", targetValues);
+        logger.info("targetValuesDependent: %s", targetValuesDependent);     
+        logger.info("targetValuesIndependent: %s", targetValuesIndependent);
+        
+        // Преобразуем номера абонентов в строки для сравнения с текстовым полем
+        const abonentNumbersAsStrings = abonentNumbers.map(num => num.toString());
+        
+        const targetPlaceholdersDependent = targetValuesDependent.map((_, i) => `$${i + 3}`).join(', ');
+        const targetPlaceholdersIndependent = targetValuesIndependent.map((_, i) => `$${i + 3 + targetValuesDependent.length}`).join(', ');
+        const abonentsListPlaceholders = abonentNumbersAsStrings.map((_, i) => `$${i + 3 + targetValuesDependent.length + targetValuesIndependent.length}`).join(', ');
+        
+        // Упрощенный запрос - сначала получаем события в диапазоне
+        const queryInRange = `
+WITH events_in_range AS (
+    SELECT 
+        *,
+        data_ev ->> 'numAbonent' as num_abonent,
+        data_ev ->> 'evType' as ev_type
+    FROM ${tableName} t
+    WHERE 
+        (${timeField} BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2))
+        AND ((data_ev ->> 'evType')::text IN (${targetPlaceholdersDependent}, ${targetPlaceholdersIndependent}))
+        AND (
+            ((data_ev ->> 'numAbonent')::text IN (${abonentsListPlaceholders}))                 
+            OR
+            (NOT data_ev ? 'numAbonent')
+        )
+)
+SELECT 
+    COALESCE(num_abonent, 'notAbonent') as numAbonent,
+    jsonb_agg(
+        jsonb_build_object(
+            'id', id,
+            'time', ${timeField},
+            'name_ev', name_ev,
+            'evType', ev_type,
+            'data_ev', data_ev,
+            'is_previous', false
+        )
+        ORDER BY ${timeField} ASC
+    ) as events_array
+FROM events_in_range
+GROUP BY COALESCE(num_abonent, 'notAbonent')
+ORDER BY numAbonent;
+        `;
+
+        const params = [
+            startTime, 
+            endTime, 
+            ...targetValuesDependent, 
+            ...targetValuesIndependent, 
+            ...abonentNumbersAsStrings
+        ];
+        
+        logger.info('Executing getAbonentEventsTable with params: %s', params);
+        const rangeEvents = await pool.query(queryInRange, params);
+        logger.info('eventsJournal: getAbonentEventsTable result: %s rows', rangeEvents.rows.length);        
+        // Проверка на пустые массивы
+        if (targetValuesDependent.concat(targetValuesIndependent).length === 0 || abonentNumbersAsStrings.length === 0) {
+            logger.info('No target values or abonent numbers, skipping previous events search');
+            return { rows: rangeEvents.rows.map(row => ({
+                numAbonent: row.numabonent,
+                events: row.events_array,
+                previousEvents: [],
+                hasPreviousEvents: false
+            })) };
+        }
+        logger.info('eventsJournal: getAbonentEventsTable result: %s ', po(rangeEvents.rows));
+        let isExistAbonents = {}; 
+        for(let abonentNumber of abonentNumbersAsStrings) {
+            isExistAbonents[abonentNumber] = false;
+        }
+        isExistAbonents['notAbonent'] = false;
+        let missingTargetValues = {};
+        for (const row of rangeEvents.rows) {
+            //logger.info('eventsJournal: getAbonentEventsTable row: %s', po(row));  
+            // Если абонент есть в списке абонентов, то забираем его список событий
+            const targetValuesDependentForAbonent = targetValuesDependent.filter(v => abonentNumbersAsStrings.includes(row.numabonent));
+            // Если абонент не абонент, то забираем его список событий независимых от номера
+            const targetValuesIndependentForAbonent = targetValuesIndependent.filter(v => row.numabonent === 'notAbonent');
+            if(targetValuesDependentForAbonent.length === 0 && targetValuesIndependentForAbonent.length === 0) {
+              continue;
+            }
+            isExistAbonents[row.numabonent] = true;
+            // Находим события, которых нет в списке
+            let missingTargetValuesForOneAbonent = targetValuesDependentForAbonent.concat(targetValuesIndependentForAbonent).filter(v => !row.events_array.map(e => e.evType).includes(v));
+            missingTargetValues[row.numabonent] = missingTargetValuesForOneAbonent;            
+            
+        }
+        for(let abonentNumber in isExistAbonents) {
+            if (isExistAbonents[abonentNumber] == false) {
+                if(abonentNumber === 'notAbonent') {
+                  missingTargetValues[abonentNumber] = targetValuesIndependent;  
+                }
+                else {
+                  missingTargetValues[abonentNumber] = targetValuesDependent;
+                }                
+            }
+        }
+
+        logger.info('eventsJournal: getAbonentEventsTable missingTargetValues: %s', po(missingTargetValues));
+        
+        // Теперь отдельно найдем предыдущие события для каждого абонента и типа
+        const previousEvents = await this.getPreviousEvents(
+            tableName, 
+            timeField, 
+            startTime, 
+            missingTargetValues 
+        );
+        
+
+        let rangeEventsMap = {};
+        for( let abonent  of rangeEvents.rows) {
+          rangeEventsMap[abonent.numabonent] = abonent;          
+        }
+        let previousEventsMap = {};
+        for( let abonent  of previousEvents.rows) {          
+          previousEventsMap[abonent.numabonent] = abonent;
+        }
+        let abonentNumbersFull = abonentNumbersAsStrings.concat(['notAbonent']);
+        for( let abonent  of abonentNumbersFull) {
+          if((previousEventsMap[abonent]) && (!rangeEventsMap[abonent]) ) {                        
+            rangeEventsMap[abonent] = previousEventsMap[abonent];
+          }
+          else if((previousEventsMap[abonent]) && (rangeEventsMap[abonent]) ) {            
+            rangeEventsMap[abonent].events_array = previousEventsMap[abonent].events_array.concat(rangeEventsMap[abonent].events_array);                       
+          }
+        }
+
+        return rangeEventsMap;
+       
+        
+    } catch (error) {
+        console.error('Error executing query:', error);
+        logger.error('Error in getAbonentEventsTable: %s', error.message);
+        throw error;
+    }
+}
+
+
+
+
+async get(request) {
+    let req = request;
+    try {      
+      let result;
+      if(req.startDateHuman !== undefined) {        
+        req.startDate = Math.floor(new Date(req.startDateHuman).getTime() / 1000);
+      }     
+      if(req.endDateHuman !== undefined) {        
+        req.endDate = Math.floor(new Date(req.endDateHuman).getTime() / 1000);
+      }     
+
+      if(req.requestType !== undefined) {
+        switch(req.requestType) {
+          case "monitoring": {
+             logger.info("get monitoring");
+             result = await  this.getAbonentEventsTable("events_schema.events_table", "human_date_ev", 
+                 req.startDate,
+                 req.endDate,
+                 req.eventTypesList,
+                 req.abonentNumbersList               
+             );             
+            return result;
+          }
+          default: {
+            throw new Error("Unknown requestType: " + req.requestType);
+          } 
+        }
+      }
+      // ... остальной код метода get
+    } catch (err) {
+      logger.error(err.stack,"eventsJournal: get");
+      throw(err);
+    }
+}
+
+
+
+
+//------------------------------------------------------------------------------------
 };
 
 

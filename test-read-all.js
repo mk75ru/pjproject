@@ -34,14 +34,20 @@ import {logger,po} from './logger.js';
                     //startDateHuman: "2025-09-08T14:22:05.000",
                     //startDateHuman: "2025-09-08T17:46:53.000",
                     //endDateHuman: "2025-09-08T17:49:02.000",
-                    startDateHuman: "2025-09-09T18:00:00.000",
-                    endDateHuman: "2025-09-10T18:59:02.000",
-                    eventTypesList:["eventAlarmSession","eventAlarmSessionBgi", "smsGateway", "voiceGateway", "sipChannelChanged", "sipRegistrationStatus"],
+                    //startDateHuman: "2025-09-10T14:53:00.000",
+
+                    //startDateHuman: "2025-09-10T16:16:00.000",                    
+                    //endDateHuman: "2025-09-10T16:19:00.000",
+                    startDateHuman: "2025-09-10T14:56:00.000",                    
+                    endDateHuman: "2025-09-10T15:10:00.000",
+
+                    eventTypesList:["sipChannelChanged", "sipRegistrationStatus","eventAlarmSessionBgi", "eventAlarmSession", "smsGateway", "voiceGateway"],
                     abonentNumbersList:[9]             
                   }
       let request_j = JSON.stringify(request)
       let rc =  await  evjrnl.get(request);
       let  payload =  {err: "success", data: rc}
+      logger.info('>>>>>>>>>>>>>>>>>>>>>>>>>>>>> REQUEST result:: \n%s ', po(payload));
 
 /*
     const presenceTable = await evjrnl.getTargetPresenceTableHuman(
