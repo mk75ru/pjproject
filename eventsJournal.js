@@ -1025,7 +1025,70 @@ async get(request) {
           } 
         }
       }
-      // ... остальной код метода get
+
+      // ... остальной код метода get 
+      let fields_part = "date_ev ,name_ev, description_ev,id_session_ev ,version_data_ev";
+      let fields_full = "*";
+      let fields = fields_part;      
+      logger.info('eventsJournal: get: %s ',  po(req));
+      if(req.allFields !== undefined) {
+        if(req.allFields === true) {
+          logger.trace("get full");
+          fields = fields_full;
+        }
+      }
+      if(req.idEv !== undefined) {
+          result = await pool.query('SELECT * FROM events_schema.events_table WHERE (id = $1)',
+                                  [req.idEv]);
+
+      }
+      else if(req.idSess === undefined) {
+        if((req.evType !== undefined) && (req.evType.length !== 0) )
+        {
+          if (fields === "*") {         
+            result = await pool.query('SELECT * FROM events_schema.events_table WHERE (human_date_ev BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2)) AND (name_ev = ANY($3::text[])) ORDER BY id DESC, human_date_ev DESC  ',
+                                    [req.startDate,req.endDate,req.evType]);                                                   
+          } else {
+            result = await pool.query('SELECT id, date_ev ,name_ev, description_ev,id_session_ev ,version_data_ev FROM events_schema.events_table WHERE (human_date_ev BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2)) AND (name_ev = ANY($3::text[])) ORDER BY id DESC, human_date_ev DESC  ',
+                                    [req.startDate,req.endDate,req.evType]);
+          }
+        }
+        else {
+          if (fields === "*") {
+            result = await pool.query('SELECT * FROM events_schema.events_table WHERE (human_date_ev BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2)) ORDER BY id DESC, human_date_ev DESC',
+                                      [req.startDate,req.endDate]);
+          }
+          else {
+            result = await pool.query('SELECT id, date_ev ,name_ev, description_ev,id_session_ev ,version_data_ev FROM events_schema.events_table WHERE (human_date_ev BETWEEN TO_TIMESTAMP($1) AND TO_TIMESTAMP($2)) ORDER BY id DESC, human_date_ev DESC',
+                                      [req.startDate,req.endDate]);
+          }
+        }
+      }
+      else {
+        if((req.evType !== undefined) && (req.evType.length !== 0) ) {
+          if (fields === "*") {
+            result = await pool.query('SELECT * FROM events_schema.events_table WHERE (name_ev = ANY($1::text[])) AND (id_session_ev = $2) ORDER BY id DESC, human_date_ev DESC',
+                                  [req.evType, req.idSess ]);
+          }
+          else {
+            result = await pool.query('SELECT id, date_ev ,name_ev, description_ev,id_session_ev ,version_data_ev FROM events_schema.events_table WHERE (name_ev = ANY($1::text[])) AND (id_session_ev = $2) ORDER BY id DESC, human_date_ev DESC',
+                                  [req.evType, req.idSess ]);
+          }
+        }
+        else {
+          if (fields === "*") {
+            result = await pool.query('SELECT * FROM events_schema.events_table WHERE  (id_session_ev = $1) ORDER BY id DESC, human_date_ev DESC',
+                                  [req.idSess ]);
+          }
+          else {
+            result = await pool.query('SELECT id, date_ev ,name_ev, description_ev,id_session_ev ,version_data_ev  FROM events_schema.events_table WHERE  (id_session_ev = $1) ORDER BY id DESC, human_date_ev DESC',
+                                  [req.idSess ]);
+          }
+        }
+      }
+      //logger.info('eventsJournal: get length: %s ', result.rows.length );
+      logger.trace('eventsJournal: get: %s ',  po(result.rows));
+      return  result.rows;      
     } catch (err) {
       logger.error(err.stack,"eventsJournal: get");
       throw(err);
