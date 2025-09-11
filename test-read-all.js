@@ -25,8 +25,8 @@ import {logger,po} from './logger.js';
     await evjrnl.run();
     {
       logger.info('REQUEST ---------------------- 1 ---------------------');
-      let request ={startDate: 1731380232, endDate: 1757584800, evType:["alarmStart","alarmEnd","connected"]}
-      /*
+      //let request ={startDate: 1731380232, endDate: 1757584800, evType:["alarmStart","alarmEnd","connected"]}
+      
       let request ={
                     requestType: "monitoring",
                     //startDateHuman: "2025-09-08T14:20:33.000",
@@ -39,13 +39,12 @@ import {logger,po} from './logger.js';
 
                     //startDateHuman: "2025-09-10T16:16:00.000",                    
                     //endDateHuman: "2025-09-10T16:19:00.000",
-                    startDateHuman: "2025-09-10T14:56:00.000",                    
-                    endDateHuman: "2025-09-10T15:10:00.000",
+                    startDateHuman: "2025-09-11T17:20:00.000",                    
+                    endDateHuman: "2025-09-11T18:10:00.000",
 
                     eventTypesList:["sipChannelChanged", "sipRegistrationStatus","eventAlarmSessionBgi", "eventAlarmSession", "smsGateway", "voiceGateway"],
                     abonentNumbersList:[9]             
-                  }
-      */
+                  }      
       let request_j = JSON.stringify(request)
       let rc =  await  evjrnl.get(request);
       let  payload =  {err: "success", data: rc}

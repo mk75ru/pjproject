@@ -781,7 +781,8 @@ WITH ranked_events AS (
             PARTITION BY 
                 COALESCE(data_ev->>'numAbonent', 'notAbonent'), 
                 data_ev->>'evType'
-            ORDER BY t.${timeField} DESC
+            ORDER BY id DESC, ${timeField} DESC    
+            -- ORDER BY t.${timeField} DESC            
         ) as rn
     FROM ${tableName} t,
     jsonb_each_text($2::jsonb) AS obj(key, value)
@@ -811,7 +812,8 @@ SELECT
             'data_ev', data_ev,
             'is_previous', true
         )
-        ORDER BY ${timeField} ASC
+        ORDER BY id ASC, ${timeField} ASC    
+        -- ORDER BY ${timeField} ASC        
     ) as events_array
 FROM ranked_events
 WHERE rn = 1
@@ -894,7 +896,9 @@ SELECT
             'data_ev', data_ev,
             'is_previous', false
         )
-        ORDER BY ${timeField} ASC
+        ORDER BY id ASC, ${timeField} ASC    
+        -- ORDER BY ${timeField} ASC
+        
     ) as events_array
 FROM events_in_range
 GROUP BY COALESCE(num_abonent, 'notAbonent')
