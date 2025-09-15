@@ -105,17 +105,16 @@ int parse_quoted_string(const char* input, ParsedResult* result) {
     
     return 0; // Успешный парсинг
 } 
-void getCallerId(char** caller_id_name_,const char* remote_info){
-    static const char *caller_id = remote_info;
+const char*  getCallerId(const char* remote_info){
+    const char *caller_id = remote_info;
     printf("Incoming call from: %s\n", caller_id);
-    ParsedResult caller_id_parsed;
+    static  ParsedResult caller_id_parsed;
     int rc =parse_quoted_string(caller_id, &caller_id_parsed); 
     const char* caller_id_name = caller_id_parsed.name;
     if(rc < 0 ) {
         caller_id_name = "";
     }
-    strcat(*caller_id_name_ , caller_id_name);
-    return;
+    return caller_id_name;
 }
 
 
