@@ -104,6 +104,17 @@ int parse_quoted_string(const char* input, ParsedResult* result) {
     if (*ptr != '>') return -4;
     
     return 0; // Успешный парсинг
+} 
+const char* getCallerId(const char* remote_info){
+    const char *caller_id = remote_info;
+    printf("Incoming call from: %s\n", caller_id);
+    ParsedResult caller_id_parsed;
+    int rc =parse_quoted_string(caller_id, &caller_id_parsed); 
+    const char* caller_id_name = caller_id_parsed.name;
+    if(rc < 0 ) {
+        caller_id_name = "";
+    }
+    return caller_id_name;
 }
 
 
@@ -261,8 +272,10 @@ static void on_call_state(pjsua_call_id call_id, pjsip_event *e)
                       call_id));
             log_call_dump(call_id);
         }
-
         const char*  message = R"({"Cmd":"VoipEvent","Event":"on_call_state","State":"Disconnected"})";
+        char  message[1024];
+        memset(message,0,sizeof(message));
+        sprintf(message,R"({"Cmd":"VoipEvent","Event":"on_call_state","State":"Disconnected","CallerID":"%s"})", getCallerId(call_info.remote_info.ptr));
         event_handler_run(message);
 
     } else {
@@ -305,24 +318,29 @@ static void on_call_state(pjsua_call_id call_id, pjsip_event *e)
             {
                 ringback_start(call_id);
             }
-
-            PJ_LOG(3,(THIS_FILE, "Call %d state changed to %.*s (%d %.*s)", 
+            PJ_LOG(3,(THIS_FILE, "Call %d remote_contact=%s",call_id, call_info.remote_contact));
+            PJ_LOG(3,(THIS_FILE, "Call %d remote_info=%s",call_id, call_info.remote_info));
+            PJ_LOG(3,(THIS_FILE, "Call %d state changed to %.*s (%d %.*s) remote_info=%s remote_contact=%s", 
                       call_id, (int)call_info.state_text.slen, 
                       call_info.state_text.ptr, code, 
-                      (int)reason.slen, reason.ptr));
+                      (int)reason.slen, reason.ptr,call_info.remote_info,call_info.remote_contact));
             char  message[1024];
             memset(message,0,sizeof(message));
-            sprintf(message,"{\"Cmd\":\"VoipEvent\",\"CallInfoState\":\"PJSIP_INV_STATE_EARLY\",\"Event\":\"on_call_state\",\"State\":\"%s\"}", call_info.state_text.ptr);
+            sprintf(message,"{\"Cmd\":\"VoipEvent\",\"CallInfoState\":\"PJSIP_INV_STATE_EARLY\",\"Event\":\"on_call_state\",\"State\":\"%s\",\"CallerID\":\"%s\"}", 
+                call_info.state_text.ptr,getCallerId(call_info.remote_info.ptr));
             printf("1 --------------> %s\n",message);
             event_handler_run(message);
         } else {
-            PJ_LOG(3,(THIS_FILE, "Call %d state changed to %.*s", 
+            PJ_LOG(3,(THIS_FILE, "Call %d remote_contact=%s",call_id, call_info.remote_contact));
+            PJ_LOG(3,(THIS_FILE, "Call %d remote_info=%s",call_id, call_info.remote_info));
+            PJ_LOG(3,(THIS_FILE, "Call %d state changed to %.*s remote_info=%s remote_contact=%s", 
                       call_id,
                       (int)call_info.state_text.slen,
-                      call_info.state_text.ptr));
+                      call_info.state_text.ptr,call_info.remote_info,call_info.remote_contact));
             char  message[1024];
             memset(message,0,sizeof(message));
-            sprintf(message,"{\"Cmd\":\"VoipEvent\",\"CallInfoState\":\"!PJSIP_INV_STATE_EARLY\",\"Event\":\"on_call_state\",\"State\":\"%s\"}", call_info.state_text.ptr);
+            sprintf(message,"{\"Cmd\":\"VoipEvent\",\"CallInfoState\":\"!PJSIP_INV_STATE_EARLY\",\"Event\":\"on_call_state\",\"State\":\"%s\",\"CallerID\":\"%s\"}", call_info.state_text.ptr,
+                getCallerId(call_info.remote_info.ptr));
             printf("2 --------------> %s\n",message);
             event_handler_run(message);
 
@@ -418,17 +436,10 @@ static void on_incoming_call(pjsua_acc_id acc_id, pjsua_call_id call_id,
                   (app_config.use_cli?"ca a":"a"),
                   (app_config.use_cli?"g":"h")));
     }
-    const char *caller_id = call_info.remote_info.ptr;
-    printf("Incoming call from: %s\n", caller_id);
-    ParsedResult caller_id_parsed;
-    int rc =parse_quoted_string(caller_id, &caller_id_parsed); 
-    const char* caller_id_name = caller_id_parsed.name;
-    if(rc < 0 ) {
-        caller_id_name = "";
-    }
     char  message[1024];
     memset(message,0,sizeof(message));
-    sprintf(message,R"({"Cmd":"VoipEvent","Event":"on_incoming_call","CallerID":"%s"})",caller_id_name);
+    sprintf(message,R"({"Cmd":"VoipEvent","Event":"on_incoming_call","CallerID":"%s"})",
+        getCallerId(call_info.remote_info.ptr));
     event_handler_run(message);
 }
 
