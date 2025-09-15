@@ -105,8 +105,8 @@ int parse_quoted_string(const char* input, ParsedResult* result) {
     
     return 0; // Успешный парсинг
 } 
-const char* getCallerId(const char* remote_info){
-    const char *caller_id = remote_info;
+void getCallerId(char** caller_id_name_,const char* remote_info){
+    static const char *caller_id = remote_info;
     printf("Incoming call from: %s\n", caller_id);
     ParsedResult caller_id_parsed;
     int rc =parse_quoted_string(caller_id, &caller_id_parsed); 
@@ -114,7 +114,8 @@ const char* getCallerId(const char* remote_info){
     if(rc < 0 ) {
         caller_id_name = "";
     }
-    return caller_id_name;
+    strcat(*caller_id_name_ , caller_id_name);
+    return;
 }
 
 
@@ -272,7 +273,6 @@ static void on_call_state(pjsua_call_id call_id, pjsip_event *e)
                       call_id));
             log_call_dump(call_id);
         }
-        const char*  message = R"({"Cmd":"VoipEvent","Event":"on_call_state","State":"Disconnected"})";
         char  message[1024];
         memset(message,0,sizeof(message));
         sprintf(message,R"({"Cmd":"VoipEvent","Event":"on_call_state","State":"Disconnected","CallerID":"%s"})", getCallerId(call_info.remote_info.ptr));
