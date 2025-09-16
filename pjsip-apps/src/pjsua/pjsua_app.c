@@ -105,16 +105,17 @@ int parse_quoted_string(const char* input, ParsedResult* result) {
     
     return 0; // Успешный парсинг
 } 
-const char*  getCallerId(const char* remote_info){
+const char*  getCallerId(const char* remote_info) {
     const char *caller_id = remote_info;
-    printf("Incoming call from: %s\n", caller_id);
-    static  ParsedResult caller_id_parsed;
-    int rc =parse_quoted_string(caller_id, &caller_id_parsed); 
-    const char* caller_id_name = caller_id_parsed.name;
-    if(rc < 0 ) {
-        caller_id_name = "";
+    printf("caller_id full: %s\n", caller_id);
+    static  ParsedResult caller_id_parsed;    
+    int rc =parse_quoted_string(caller_id, &caller_id_parsed);     
+    printf("caller_id parsed rc: %d\n", rc);
+    if(rc < 0 ) {        
+        memset(caller_id_parsed.name,0,sizeof(caller_id_parsed.name));        
     }
-    return caller_id_name;
+    printf("caller_id parsed data: %s\n", caller_id_parsed.name);
+    return caller_id_parsed.name;
 }
 
 
@@ -317,12 +318,11 @@ static void on_call_state(pjsua_call_id call_id, pjsip_event *e)
             {
                 ringback_start(call_id);
             }
-            PJ_LOG(3,(THIS_FILE, "Call %d remote_contact=%s",call_id, call_info.remote_contact));
-            PJ_LOG(3,(THIS_FILE, "Call %d remote_info=%s",call_id, call_info.remote_info));
-            PJ_LOG(3,(THIS_FILE, "Call %d state changed to %.*s (%d %.*s) remote_info=%s remote_contact=%s", 
+
+            PJ_LOG(3,(THIS_FILE, "Call %d state changed to %.*s (%d %.*s)", 
                       call_id, (int)call_info.state_text.slen, 
                       call_info.state_text.ptr, code, 
-                      (int)reason.slen, reason.ptr,call_info.remote_info,call_info.remote_contact));
+                      (int)reason.slen, reason.ptr));
             char  message[1024];
             memset(message,0,sizeof(message));
             sprintf(message,"{\"Cmd\":\"VoipEvent\",\"CallInfoState\":\"PJSIP_INV_STATE_EARLY\",\"Event\":\"on_call_state\",\"State\":\"%s\",\"CallerID\":\"%s\"}", 
@@ -330,12 +330,10 @@ static void on_call_state(pjsua_call_id call_id, pjsip_event *e)
             printf("1 --------------> %s\n",message);
             event_handler_run(message);
         } else {
-            PJ_LOG(3,(THIS_FILE, "Call %d remote_contact=%s",call_id, call_info.remote_contact));
-            PJ_LOG(3,(THIS_FILE, "Call %d remote_info=%s",call_id, call_info.remote_info));
-            PJ_LOG(3,(THIS_FILE, "Call %d state changed to %.*s remote_info=%s remote_contact=%s", 
+            PJ_LOG(3,(THIS_FILE, "Call %d state changed to %.*s", 
                       call_id,
                       (int)call_info.state_text.slen,
-                      call_info.state_text.ptr,call_info.remote_info,call_info.remote_contact));
+                      call_info.state_text.ptr));
             char  message[1024];
             memset(message,0,sizeof(message));
             sprintf(message,"{\"Cmd\":\"VoipEvent\",\"CallInfoState\":\"!PJSIP_INV_STATE_EARLY\",\"Event\":\"on_call_state\",\"State\":\"%s\",\"CallerID\":\"%s\"}", call_info.state_text.ptr,
