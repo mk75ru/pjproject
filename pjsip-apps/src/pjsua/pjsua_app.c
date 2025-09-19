@@ -379,6 +379,9 @@ static void on_incoming_call(pjsua_acc_id acc_id, pjsua_call_id call_id,
     PJ_UNUSED_ARG(rdata);
 
     pjsua_call_get_info(call_id, &call_info);
+    
+    // Автоматически отвечаем 180 Ringing
+    pjsua_call_answer(call_id, 180, NULL, NULL);
 
     if (current_call==PJSUA_INVALID_ID)
         current_call = call_id;
